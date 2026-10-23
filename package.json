@@ -1,0 +1,12 @@
+{
+  "name": "arcsync-lab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "云州档案检索与查阅协同平台 · 本地合成数据演示",
+  "scripts": {
+    "start": "sh scripts/start.sh",
+    "dev": "sh scripts/start.sh",
+    "test": "sh scripts/test.sh",
+    "build": "sh scripts/build.sh"
+  }
+}

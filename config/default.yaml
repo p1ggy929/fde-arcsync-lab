@@ -1,0 +1,12 @@
+# 设计默认值；实际演示运行参数由命令行与环境变量控制。
+# 此文件为接入真实系统时的非机密配置模板，当前不由运行时解析。
+mode: synthetic-local
+server:
+  host: 127.0.0.1
+  port: 8765
+pilot:
+  scope: public-archives
+  business_refresh_seconds: 3600
+  evaluation_retention_days: 90  # 待组织确认；不自动删除
+  source_write_enabled: false
+  ai_enabled: false
