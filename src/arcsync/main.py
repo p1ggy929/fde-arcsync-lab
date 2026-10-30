@@ -78,7 +78,7 @@ def frontend(page: str,request: Request):
         if page != user['home'].lstrip('/'):
             return RedirectResponse(user['home'],status_code=303)
     files={'admin/manage.css':'manage.css','admin/manage.js':'manage.js','':'index.html','index.html':'index.html','portal':'index.html','admin':'index.html',
-           'chat-ui':'chat.html','chat.js':'chat.js','chat.css':'chat.css','app.js':'app.js','style.css':'style.css','favicon.svg':'favicon.svg'}
+           'chat.js':'chat.js','chat.css':'chat.css','app.js':'app.js','style.css':'style.css','favicon.svg':'favicon.svg'}
     if page not in files:
         raise Problem('页面或接口不存在',404)
     return FileResponse(FRONTEND/files[page])

@@ -9,9 +9,22 @@ from ..api.routes import json_body
 from ..core.store import connect
 from ..core.service import Problem
 from ..data_models.config import ModelError
-from . import repository, knowledge
+from . import repository, knowledge, evaluations
+from .layout import workspace_page
 
 router=APIRouter()
+
+
+@router.get('/api/admin/evaluations')
+def evaluation_cases(user=Depends(admin_user)):
+    return {'code':0,'message':'读取评测题库成功','data':evaluations.dataset()}
+
+
+@router.get('/api/admin/evaluations/download')
+def download_evaluations(user=Depends(admin_user)):
+    # 下载保持用户约定的JSON数组格式，权限与管理后台一致。
+    from fastapi.responses import FileResponse
+    return FileResponse(evaluations.DATASET_PATH,media_type='application/json',filename='yunzhou-archives.json')
 
 
 def employees():
@@ -77,9 +90,9 @@ def flag(identifier:str,data:dict=Depends(json_body),user=Depends(admin_user)):
 
 @router.get('/admin/manage',response_class=HTMLResponse)
 def workspace(section:str='knowledge',employee:str='',start:str='',end:str='',offset:int=Query(0,ge=0),user=Depends(admin_user)):
-    if section not in ('knowledge','prompt','audit'):raise Problem('页面不存在',404)
+    if section not in ('knowledge','prompt','audit','evaluation'):raise Problem('页面不存在',404)
     e=lambda value:escape(str(value or ''),quote=True)
-    title={'knowledge':'制度知识库','prompt':'系统提示词','audit':'对话审计'}[section]
+    title={'knowledge':'制度知识库','prompt':'系统提示词','audit':'对话审计','evaluation':'项目评测'}[section]
     body=''
     if section=='knowledge':
         body='''<section class="card"><h2>上传制度</h2><p>Markdown / PDF · 最大10MB · PDF须含可提取文本 · 自动切片并向量化</p><form id="upload"><input type="file" id="file" accept=".md,.pdf" required><button>上传并入库</button></form></section><section class="card"><h2>已发布制度</h2><table><thead><tr><th>文件</th><th>切片</th><th>更新时间</th><th>操作</th></tr></thead><tbody>'''
@@ -88,6 +101,12 @@ def workspace(section:str='knowledge',employee:str='',start:str='',end:str='',of
     elif section=='prompt':
         template=repository.prompt()
         body=f'''<section class="card"><h2>问答系统提示词 <span>版本 {template['revision']}</span></h2><p>保存到数据库后，下一个问答请求立即使用新版本。正在生成的回答保持当前模板。</p><form id="prompt" data-revision="{template['revision']}"><textarea id="content" maxlength="16000" required>{e(template['content'])}</textarea><button>保存并生效</button></form><p>最近修改：{e(template['updated_at'])}</p></section>'''
+    elif section=='evaluation':
+        dataset=evaluations.dataset()
+        body=f'''<section class="card"><h2>云州档案评测题库 · {dataset['total']} 条</h2><p>制度类10条（含3条无答案陷阱题）、工具调用类10条、违规意图类5条、多轮上下文类5条。</p><p>用于人工或后续自动评测，不代表已经执行或通过。评测预期不进入档案检索知识库。</p><a href="/api/admin/evaluations/download">下载 JSON 题库</a></section>'''
+        for index,item in enumerate(dataset['items'],1):
+            sequence=' → '.join(item['expected_tools']) or '无'
+            body+=f'''<article class="card"><h2>{index:02d} · {e(item['category'])}</h2><h3>问题／多轮脚本</h3><pre>{e(item['question'])}</pre><h3>期望工具顺序</h3><pre>{e(sequence)}</pre><h3>预期行为及前置条件</h3><pre>{e(item['expected_behavior'])}</pre></article>'''
     else:
         options='<option value="">全部员工</option>'
         names={}
@@ -104,9 +123,13 @@ def workspace(section:str='knowledge',employee:str='',start:str='',end:str='',of
         body+='<section class="card"><h2>工具执行审计</h2><p>按当前员工与时间筛选，展示最近50条。校验通过不代表人工审核通过。</p>'
         for tool in repository.tool_events(employee,begin,finish,offset):
             body+=f'<details><summary>{e(tool["created"])} · {e(names.get(tool["user_id"],tool["user_id"]))} · {e(tool["tool"])}</summary><pre>参数：{e(tool["arguments_json"])}\n结果：{e(tool["result_json"])}</pre></details>'
+        body+='</section><section class="card"><h2>Harness 决策日志</h2><p>每次最多5轮，记录工具参数、耗时、状态和结果摘要；不记录隐藏思考。</p>'
+        from ..agents.harness_store import logs
+        for entry in logs(employee=employee,start_at=begin,end_at=finish,offset=offset)[:50]:
+            body+=f'<details><summary>第 {entry["round_no"]} 轮 · {e(entry["tool_name"])} · {entry["duration_ms"]} ms · {e(entry["status"])} · {e(entry["created"])}</summary><pre>运行：{e(entry["run_id"])}\n参数：{e(entry["arguments_json"])}\n摘要：{e(entry["result_summary"])}</pre></details>'
         body+='</section>'
         if len(rows)>50:
             from urllib.parse import urlencode
             body+='<a href="?'+e(urlencode({'section':'audit','employee':employee,'start':start,'end':end,'offset':offset+50}))+'">下一页 →</a>'
-    nav=''.join(f'<a class="{"active" if section==key else ""}" href="/admin/manage?section={key}">{name}</a>' for key,name in [('knowledge','制度知识库'),('prompt','提示词模板'),('audit','对话审计')])
-    return f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{title} · ArcSync 管理后台</title><link rel="stylesheet" href="/admin/manage.css"><script src="/admin/manage.js" defer></script></head><body><aside><h2>ArcSync <span>ADMIN</span></h2><p>平台管理工作台</p>{nav}<a href="/admin">业务工作台 ↗</a><a href="/">返回登录页</a></aside><main><header><div><p>WORKSPACE / ADMINISTRATION</p><h1>{title}</h1></div><div>{e(user['name'])} · 管理员</div></header><div id="notice" role="status" aria-live="polite"></div>{body}</main></body></html>'''
+    tabs='<nav class="management-tabs" aria-label="管理功能">'+''.join(f'<a class="{"active" if section==key else ""}" href="/admin/manage?section={key}"'+(' aria-current="page"' if section==key else '')+f'>{name}</a>' for key,name in [('knowledge','制度知识库'),('prompt','提示词模板'),('audit','对话审计'),('evaluation','项目评测')])+'</nav>'
+    return workspace_page(user,title,body,'manage','统一维护查阅依据、问答规则与服务记录，让每一次辅助都有据可查。','KNOWLEDGE & GOVERNANCE',tabs)

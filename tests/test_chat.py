@@ -204,7 +204,11 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(self.client.get('/chat-ui').status_code,200)
         self.assertEqual(self.client.get('/chat.js').status_code,200)
         self.assertEqual(self.client.get('/chat.css').status_code,200)
-        self.assertIn('/chat-ui',self.client.get('/app.js').text)
+        self.assertIn('#chat',self.client.get('/api/state').json()['sidebar'])
+        entry=self.client.get('/chat-ui',follow_redirects=False)
+        self.assertEqual(entry.status_code,303)
+        self.assertEqual(entry.headers['location'],self.user['home']+'#chat')
+        self.assertIn('archive-chat',self.client.get('/api/chat/view').json()['html'])
     def test_history_reaches_real_model_adapter_at_each_stage(self):
         from test_model_layers import ProviderFixture
         from arcsync.agents.orchestrator import Orchestrator

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Request, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 from ..core.store import connect
+from ..core.runtime import BUILD_ID
 from ..core.service import Problem, state, mutate
 from .security import current_user, admin_user, login
 from .jwt_tokens import session_id
@@ -41,7 +42,7 @@ async def json_body(request: Request):
 
 @router.get('/health')
 def health():
-    return {'status':'ok','framework':'FastAPI','mode':'synthetic-local','upstream_connected':False}
+    return {'status':'ok','framework':'FastAPI','mode':'synthetic-local','upstream_connected':False,'build_id':BUILD_ID}
 
 @router.post('/login',openapi_extra=LOGIN_REQUEST)
 def sign_in(request: Request, data: dict = Depends(json_body)):
@@ -69,7 +70,10 @@ def session(user=Depends(current_user)):
 @router.get('/state')
 def snapshot(user=Depends(current_user)):
     with connect() as db:
-        return state(db,user)
+        result=state(db,user)
+    from ..admin.layout import render_sidebar
+    result['sidebar']=render_sidebar(user)
+    return result
 
 @router.get('/admin/overview')
 def overview(user=Depends(admin_user)):

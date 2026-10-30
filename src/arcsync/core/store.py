@@ -88,6 +88,8 @@ def init_db(path=None):
             db.execute('CREATE TABLE IF NOT EXISTS jwt_keys(id INTEGER PRIMARY KEY,secret TEXT NOT NULL)')
         from ..agents.access import initialize as initialize_access
         initialize_access(db)
+        from ..agents.harness_store import initialize as initialize_harness
+        initialize_harness(db)
         from .accounts import migrate_accounts
         migrate_accounts(db)
         if db.execute('SELECT COUNT(*) FROM documents').fetchone()[0]:

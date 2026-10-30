@@ -149,20 +149,26 @@ def can_create(user):
     return False
 
 
-def create(user,identifier,revision,token,authorized):
-    if not authorized:raise Problem('请先在聊天输入区明确允许本次创建查阅草稿',403)
+def create(user,identifier,revision,token,confirmation_id):
+    """Only a server-confirmed checkpoint may reach the database write."""
+    from .confirmations import resolve
+    if not isinstance(confirmation_id,str):raise Problem('创建草稿须先确认具体内容',403)
+    return resolve(user,confirmation_id,None,True,expected=(identifier,revision,token),already_confirmed=True)
+
+
+def _create_confirmed(db,user,identifier,revision,token):
+    # Internal transaction-only primitive; never exposed as an HTTP/model tool.
     require(user,('organizer','reviewer','representative'))
-    with connect() as db:
-        db.execute('BEGIN IMMEDIATE');check_active(db);valid_receipt(db,user,identifier,revision,token)
-        row=db.execute('SELECT * FROM access_drafts WHERE case_id=? AND revision=? AND user_id=?',(identifier,revision,owner(user))).fetchone()
-        if row:
-            if not row['business_id']:
-                db.execute('UPDATE access_drafts SET validation_id=? WHERE id=?',(token,row['id']))
-            return {**dict(row),'validation_id':token,'status':'submitted' if row['business_id'] else 'draft','url':'/access-drafts'}
-        draft=uuid.uuid4().hex
-        db.execute('INSERT INTO access_drafts VALUES(?,?,?,?,?,?,?)',(draft,identifier,revision,owner(user),token,now(),None))
-        audit(db,user,'智能体创建查阅草稿',detail={'draft_id':draft,'case_id':identifier,'revision':revision})
-        return {'id':draft,'case_id':identifier,'revision':revision,'status':'draft','url':'/access-drafts','notice':'尚未提交，须人工确认后提交权限核验'}
+    check_active(db);valid_receipt(db,user,identifier,revision,token)
+    row=db.execute('SELECT * FROM access_drafts WHERE case_id=? AND revision=? AND user_id=?',(identifier,revision,owner(user))).fetchone()
+    if row:
+        if not row['business_id']:
+            db.execute('UPDATE access_drafts SET validation_id=? WHERE id=?',(token,row['id']))
+        return {**dict(row),'validation_id':token,'status':'submitted' if row['business_id'] else 'draft','url':'/access-drafts'}
+    draft=uuid.uuid4().hex
+    db.execute('INSERT INTO access_drafts VALUES(?,?,?,?,?,?,?)',(draft,identifier,revision,owner(user),token,now(),None))
+    audit(db,user,'智能体创建查阅草稿',detail={'draft_id':draft,'case_id':identifier,'revision':revision})
+    return {'id':draft,'case_id':identifier,'revision':revision,'status':'draft','url':'/access-drafts','notice':'尚未提交，须人工确认后提交权限核验'}
 
 
 def drafts(user):

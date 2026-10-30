@@ -33,6 +33,7 @@ const navigation = [
  ['reviews','审核与交接','swap'], ['issues','异常与修复','alert'], ['metrics','试点评估','chart'],
  ['feedback','服务反馈','chat'], ['settings','管理与审计','settings']
 ];
+let chatDispose=null,chatLoadSequence=0;
 let S=null, current='dashboard', selectedCase=null, taskTab='mine', businessFilter='', issueFilter='open';
 let searchResults=[], searchQuery='', filters={category:'',year:'',status:''}, searchSeq=0;
 let modalContext=null, pageData=null, toastTimer, lastFocus, busy=false;
@@ -75,6 +76,7 @@ async function refresh() {
  document.title=`${isAdmin()?'管理后台':'员工门户'} · 云州档案`;
 }
 function renderLogin(error='') {
+ chatDispose?.();chatDispose=null;chatLoadSequence++;
  searchController?.abort();agentController?.abort();agentState={question:'',answer:'',sources:[],trace:[]};
  if(location.pathname!=='/')history.replaceState(null,'','/');
  document.title='欢迎使用 · 云州档案';
@@ -82,13 +84,17 @@ function renderLogin(error='') {
 }
 function archiveArt(){return '<div class="hero-circle"></div><div class="archive-drawing"><div class="archive-label">档案<small>YUNZHOU · ARCHIVES</small></div></div>';}
 function sidebar(){
- const pending=S.businesses.filter(b=>owned(b)&&b.status!=='已交付').length;
- const issues=S.issues.filter(i=>i.status!=='已处理').length;
- const handoffs=S.handoffs.filter(x=>x.receiver===S.user.role&&x.status==='待接手').length;
- return `<aside class="sidebar"><a class="brand" href="#dashboard" aria-label="云州档案工作台"><div class="brandmark">${icon('archive')}</div><div><strong>云州档案</strong><small>YUNZHOU ARCHIVES</small></div></a><div class="nav-label">${portalLabel()}</div><nav class="nav"><a href="/access-drafts"><span>查阅申请草稿</span></a>${isAdmin()?'<a href="/admin/manage"><span>制度与问答管理</span></a>':''}<a href="/chat-ui" title="智能查阅">${icon('chat')}<span>智能查阅</span></a>${visibleNavigation().map(([id,title,i],n)=>`${id==='metrics'?'<div class="nav-label">评估与管理</div>':''}<a href="#${id}" class="${current===id||current==='detail'&&id==='businesses'?'active':''}" ${current===id?'aria-current="page"':''} title="${title}">${icon(i)}<span>${title}</span>${id==='dashboard'&&pending?`<span class="nav-count">${pending}</span>`:id==='issues'&&issues?`<span class="nav-count">${issues}</span>`:id==='reviews'&&handoffs?`<span class="nav-count">${handoffs}</span>`:''}</a>`).join('')}</nav><div class="sidebar-bottom"><div class="pilot-card"><strong>有边界的智能辅助</strong><p>每一条建议都关联原卷依据<br>每一次交接都有明确责任</p><span>公开档案 · 小范围试点 ${icon('arrow')}</span></div><div class="sidebar-foot"><span class="dot"></span> 本地服务运行中 · v0.3.0</div></div></aside>`;
+ const markup=new DOMParser().parseFromString(S.sidebar,'text/html');
+ for(const link of markup.querySelectorAll('[data-nav]')){
+  const active=link.dataset.nav===(current==='detail'?'businesses':current);
+  link.classList.toggle('active',active);
+  if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
+ }
+ return markup.querySelector('.sidebar').outerHTML;
 }
+
 function shell(content){
- const name=navigation.find(n=>n[0]===current)?.[1] || '业务详情';
+ const name=current==='chat'?'智能查阅':navigation.find(n=>n[0]===current)?.[1] || '业务详情';
  $('#app').innerHTML=`<div class="shell">${sidebar()}<div class="workspace"><header class="topbar"><div class="crumb"><span>${portalLabel()}</span>${icon('chevron')}<strong>${name}</strong></div><div class="top-right"><button class="icon-btn" data-action="refresh" aria-label="刷新业务数据" title="刷新业务数据">${icon('refresh')}</button><span class="mode-tag">合成数据演示</span><span class="header-date">${new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(new Date())}</span><button class="profile" data-action="role" title="当前账号与退出登录"><span class="avatar">${h(S.user.name.slice(-2))}</span><span><strong>${h(S.user.name)}</strong><small>${h(S.user.label)}</small></span>${icon('down')}</button></div></header><main class="main">${S.settings.paused==='true'?`<div class="notice red">${icon('pause')}<span>试点已暂停。自动推荐和正常流程推进已停止，可继续查看、保存草稿和处理人工异常。</span></div>`:''}${S.settings.stale?`<div class="notice">${icon('clock')}<span>数据暂未更新。当前为 ${date(S.settings.sync_at,true)} 的只读来源快照，不能作为实时承诺。关键依据请转人工复核。</span></div>`:''}${content}<footer class="footer"><span>© 2026 云州档案服务中心 · ARCSYNC</span><span>合成数据演示 · 原卷须人工确认 · 不改变开放范围与档案处置</span></footer></main></div></div>`;
 }
 function heading(title,desc,actions='',eyebrow=''){return `<div class="page-heading"><div>${eyebrow?`<div class="eyebrow">${eyebrow}</div>`:''}<h1>${title}</h1><p>${desc}</p></div>${actions?`<div class="button-row">${actions}</div>`:''}</div>`;}
@@ -197,11 +203,13 @@ function settingsView(){
  ['档案整理员','检索、原卷核对、引用确认、提交审核','仅已授权公开档案，不改原记录'],['查阅审核员','公开试点权限核验、审核、退回、异常分派','不能代替保护专员专业签核'],['档案保护专员','专员授权资料核验、风险审计、暂停与恢复','不自动改变开放范围和密级'],['档案系统工程师','处理数据异常、刷新本地快照','不审批业务，不自行开放写接口'],['档案服务主任','查看管理状态、审计、暂停试点','管理权限不扩大档案查看范围'],['业务查询代表','发起查阅、受理反馈、查看进度','不判定开放范围和原卷页码']].map(r=>`<tr>${r.map(c=>`<td class="break">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section><section class="panel"><div class="panel-head"><h2>操作审计记录</h2><span class="muted">追加记录 · 本地数据库禁止更新及删除</span></div>${privileged?S.audit.length?`<div class="table-wrap"><table><thead><tr><th>时间 / 操作人</th><th>操作</th><th>业务编号</th><th>审计详情</th></tr></thead><tbody>${S.audit.map(a=>`<tr><td><span class="case-title">${h(a.actor)} · ${h(roleName(a.role))}</span><span class="case-id">${date(a.at,true)}</span></td><td>${h(a.action)}</td><td class="mono">${h(a.business_id||'系统级')}</td><td class="break"><details><summary>查看凭证</summary><div class="audit-detail">${h(JSON.stringify(JSON.parse(a.detail),null,2))}</div></details></td></tr>`).join('')}</tbody></table></div>`:empty('暂无审计记录'):empty('当前岗位无权查看全局审计','业务处理记录可以在各业务详情中查看','lock')}</section>`;
 }
 function render(){
+ chatDispose?.();chatDispose=null;chatLoadSequence++;
  if(!S){renderLogin();return;}
- const views={agent:agentView,models:modelsView,dashboard:isAdmin()?adminDashboard:dashboard,businesses,search,detail,reviews,issues,metrics,feedback,settings:settingsView};
+ const views={chat:()=>heading('智能查阅','在授权范围内检索档案、核对卷页，并协同办理查阅申请。','','ARCHIVE ASSISTANT')+'<div id="chat-host"><div class="loading">正在打开智能查阅…</div></div>',agent:agentView,models:modelsView,dashboard:isAdmin()?adminDashboard:dashboard,businesses,search,detail,reviews,issues,metrics,feedback,settings:settingsView};
  shell((views[current]||dashboard)());
  // Dynamic bar lengths are set as CSS properties, never HTML from user input.
  $$('[data-bar]').forEach(el=>el.style.width=`${Math.max(0,Math.min(100,Number(el.dataset.bar)))}%`);
+ if(current==='chat')mountChatPanel();
  if(current==='search')performSearch();
  if(current==='agent'){loadAgentStatus();agentHistory();paintAgent();}
  if(current==='models')loadAgentStatus();
@@ -209,8 +217,8 @@ function render(){
 function route(){
  searchController?.abort();agentController?.abort();
  const [view,id]=(location.hash.slice(1)||'dashboard').split('/');
- if(view==='agent'){location.replace('/chat-ui');return;}
- current=(visibleNavigation().some(n=>n[0]===view)||view==='detail')?view:'dashboard';
+ if(view==='agent'){location.hash='chat';return;}
+ current=(visibleNavigation().some(n=>n[0]===view)||view==='detail'||view==='chat')?view:'dashboard';
  if(view==='detail')selectedCase=id;
  if(S){render();window.scrollTo(0,0);}
 }
@@ -448,3 +456,12 @@ async function agentAction(action,el){
 }
 
 (async()=>{try{await refresh();route();}catch{renderLogin();}})();
+
+async function mountChatPanel(){
+ const sequence=chatLoadSequence;
+ try{
+  const response=await api('chat/view');
+  if(sequence!==chatLoadSequence||current!=='chat')return;
+  const host=$('#chat-host');host.innerHTML=response.html;chatDispose=window.mountArchiveChat(host);
+ }catch(error){if(sequence===chatLoadSequence&&$('#chat-host'))$('#chat-host').textContent=error.message;}
+}

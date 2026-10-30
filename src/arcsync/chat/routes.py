@@ -5,14 +5,14 @@ import json
 import time
 import uuid
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, RedirectResponse
 from starlette.concurrency import run_in_threadpool
 from ..api.routes import json_body
 from ..api.security import current_user
 from ..api.agent_routes import _active
 from ..agents.orchestrator import Orchestrator
 from ..core.service import Problem, check_active
-from ..core.store import connect
+from ..core.store import connect, ROOT
 from ..data_models.config import ModelError
 from . import repository
 
@@ -62,6 +62,8 @@ def list_sessions(limit:int=Query(20,ge=1,le=50),offset:int=Query(0,ge=0),user=D
 @router.get('/chat/sessions/{session_id}/messages')
 def list_messages(session_id:str,limit:int=Query(20,ge=1,le=50),before_turn:int|None=Query(None,ge=1),user=Depends(current_user)):
     identifier=canonical_session(session_id)
+    from ..agents.confirmations import list_for
+    for confirmation in list_for(user,identifier):repository.reconcile_confirmation(user,confirmation)
     return payload(0,'会话消息读取成功',repository.messages(user,identifier,limit,before_turn))
 
 
@@ -86,6 +88,7 @@ async def chat(request:Request,data:dict=Depends(json_body),user=Depends(current
     try:
         turn=await run_in_threadpool(repository.start_turn,user,session_id,question,TASK_TIMEOUT)
         history=await run_in_threadpool(repository.history,user,turn['session_id'],turn['turn_no'])
+        agent.interaction={'session_id':turn['session_id'],'message_id':turn['message_id']}
     except BaseException:
         _active.discard(user_key)
         if turn:
@@ -114,7 +117,7 @@ async def chat(request:Request,data:dict=Depends(json_body),user=Depends(current
         worker=asyncio.create_task(produce());last_heartbeat=time.monotonic()
         try:
             yield event('session','会话已就绪',{'session_id':turn['session_id'],'message_id':turn['message_id']})
-            yield event('status','正在检索制度…',{'stage':'retrieving'})
+            yield event('status','正在判断查阅需求…',{'stage':'deciding'})
             # 总时限覆盖整个任务，不只限制单次模型读取等待。
             async with asyncio.timeout(TASK_TIMEOUT):
                 while True:
@@ -130,8 +133,17 @@ async def chat(request:Request,data:dict=Depends(json_body),user=Depends(current
                         stage=body.get('stage')
                         if stage=='deciding':yield event('status','正在判断下一步查阅操作…',{'stage':'deciding'})
                         if stage=='generate':yield event('status','正在生成回答…',{'stage':'generating'})
-                        elif stage=='retrieval':yield event('status','正在检索制度…',{'stage':'retrieving'})
-                    elif kind=='tool':yield event('status','正在核对制度条文…',{'stage':'retrieving'})
+                        elif stage=='retrieval':yield event('status','正在检索档案…',{'stage':'retrieving'})
+                    elif kind=='tool':yield event('status','正在核对档案依据…',{'stage':'retrieving'})
+                    elif kind=='decision':yield event('decision','本轮决策已记录',body)
+                    elif kind=='preview_delta':yield event('preview_delta','正在展示待确认草稿',body)
+                    elif kind=='confirmation_required':
+                        sources=body.get('sources',[]);items=citations(sources)
+                        await run_in_threadpool(repository._validate_sources,user,sources)
+                        await run_in_threadpool(repository.finish,user,turn,'waiting_confirmation',body['preview_text'],sources,items)
+                        terminal=True
+                        yield event('confirmation_required','请确认具体内容后再创建草稿',{k:v for k,v in body.items() if k!='sources'})
+                        return
                     elif kind=='token':yield event('delta','回答生成中',{'text':body['text']})
                     elif kind=='error':raise ModelError(body.get('error','回答生成失败，请稍后重试'))
                     elif kind=='done':
@@ -167,3 +179,20 @@ async def chat(request:Request,data:dict=Depends(json_body),user=Depends(current
                 # 即使数据库暂时不可写，也必须释放进程并发名额；占位由租约兜底恢复。
                 _active.discard(user_key)
     return StreamingResponse(stream(),media_type='text/event-stream',headers={'Cache-Control':'no-store','X-Accel-Buffering':'no'})
+
+
+@router.get('/api/chat/view')
+def chat_view(user=Depends(current_user)):
+    return {'html':(ROOT/'src'/'frontend'/'chat-panel.html').read_text()}
+
+
+@router.get('/chat-ui',include_in_schema=False)
+def chat_entry(request:Request):
+    try:user=current_user(request)
+    except Problem as error:
+        if error.status==401:return RedirectResponse('/',status_code=303)
+        raise
+    from urllib.parse import urlencode
+    identifier=request.query_params.get('session')
+    query='?'+urlencode({'session':canonical_session(identifier)}) if identifier else ''
+    return RedirectResponse(user['home']+query+'#chat',status_code=303)

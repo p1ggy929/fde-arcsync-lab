@@ -33,6 +33,11 @@ class HttpTests(unittest.TestCase):
         response=self.client.request('GET' if data is None else 'POST',path,content=None if data is None else json.dumps(data).encode(),headers=headers)
         return response.status_code,response.json() if response.headers['Content-Type'].startswith('application/json') else response.content
     def login(self,role='organizer'): return self.request('/api/login',{'role':role,'password':os.environ.get('ARCSYNC_DEMO_PASSWORD','ArcSync2026!')})
+    def test_chat_entry_without_login_redirects_to_login(self):
+        response=self.client.get('/chat-ui',follow_redirects=False)
+        self.assertEqual(response.status_code,303)
+        self.assertEqual(response.headers['location'],'/')
+
     def test_requires_login(self): self.assertEqual(self.request('/api/state')[0],401)
     def test_login_search_preview_logout(self):
         self.assertEqual(self.login()[0],200)

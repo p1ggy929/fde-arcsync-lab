@@ -13,7 +13,7 @@ from arcsync.core.store import init_db, connect
 from arcsync.core.service import Problem
 from arcsync.core.accounts import create_account
 from arcsync.api.security import identity
-from arcsync.agents import access
+from arcsync.agents import access, confirmations
 from arcsync.agents.tools import ToolBox, TOOL_SCHEMAS
 from arcsync.agents.orchestrator import Orchestrator
 from arcsync.data_models.knowledge import import_document
@@ -47,7 +47,10 @@ class AccessTests(unittest.TestCase):
         receipt=self.call('validate_access_request',case_id=case['id'],revision=1)
         self.assertEqual(receipt['status'],'passed',receipt)
         return case,receipt['validation_id']
-    def create(self,case,token,authorized=True):return access.create(self.user,case['id'],case['revision'],token,authorized)
+    def create(self,case,token,authorized=True):
+        if not authorized:return access.create(self.user,case['id'],case['revision'],token,False)
+        pending=confirmations.prepare(self.user,case['id'],case['revision'],token,{})
+        return confirmations.resolve(self.user,pending['id'],pending['preview_hash'],True)['draft']
     def test_dependency_checks_and_dynamic_tools(self):
         case=self.case()
         self.assertNotIn('create_access_draft',[s['function']['name'] for s in asyncio.run(self.tools.schemas())])
@@ -139,8 +142,10 @@ class AccessTests(unittest.TestCase):
             async def stream(model,messages,*args):yield {'text':'查阅草稿已创建，尚未提交 [C3]。'}
         config=ModelSettings(Endpoint('ollama','http://127.0.0.1:11434','test'),Endpoint('ollama','http://127.0.0.1:11434','test'))
         async def run():return [e async for e in Orchestrator(self.user,config,Model(),object()).run('创建草稿',persist=False,create_authorized=True)]
-        result=asyncio.run(run());self.assertEqual(result[-1]['event'],'done',result)
+        result=asyncio.run(run());self.assertEqual(result[-1]['event'],'confirmation_required',result)
         self.assertNotIn('create_access_draft',offered[0]);self.assertIn('create_access_draft',offered[3])
+        self.assertEqual(len(access.drafts(self.user)),0)
+        pending=result[-1]['data'];confirmations.resolve(self.user,pending['id'],pending['preview_hash'],True)
         self.assertEqual(len(access.drafts(self.user)),1)
         with connect() as db:
             self.assertEqual(db.execute('SELECT COUNT(*) FROM agent_tool_audit WHERE user_id=?',(self.user['user_id'],)).fetchone()[0],4)

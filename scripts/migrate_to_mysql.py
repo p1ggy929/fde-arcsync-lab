@@ -11,7 +11,7 @@ from arcsync.data_models.config import database_kind
 from arcsync.data_models.mysql import MySQLConnection, initialize
 
 TABLES=('users','user_accounts','document_files','documents','businesses','handoffs','issues','events','audit','feedback','settings',
-        'document_chunks','vector_embeddings','agent_runs','agent_steps','access_cases','access_validations','access_drafts','business_requesters','agent_tool_audit')
+        'document_chunks','vector_embeddings','agent_runs','agent_steps','access_cases','access_validations','access_drafts','business_requesters','agent_tool_audit','agent_harness_runs','agent_decision_logs','agent_confirmations','agent_run_owners')
 
 def migrate(source,destination):
     path=Path(source).resolve()
@@ -20,6 +20,8 @@ def migrate(source,destination):
         initialize(target)
         from arcsync.agents.access import initialize as initialize_access
         initialize_access(target)
+        from arcsync.agents.harness_store import initialize as initialize_harness
+        initialize_harness(target)
         if any(target.execute(f'SELECT COUNT(*) FROM `{table}`').fetchone()[0] for table in (*TABLES,'sessions')):
             raise RuntimeError('目标库包含数据，已停止；请改用全新空库，不覆盖现有记录')
         # No login sessions are copied. All users must sign in again after switching.

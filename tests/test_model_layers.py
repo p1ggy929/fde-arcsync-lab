@@ -53,7 +53,7 @@ class ProviderFixture:
             elif self.tool_round==2 or self.repeated:
                 args={'document_id':'YZ-CJ-1986-001','scan_page':6}
                 msg={'content':'','tool_calls':[{'id':'call_page','type':'function','function':{'name':'read_archive_page','arguments':args if ollama else json.dumps(args)}}]}
-            else:msg={'content':'证据已足够。'}
+            else:msg={'content':'依据目录，需要检查后续更正 [C999]。' if self.invalid_citation else '依据目录，需要检查后续更正 [C1]。'}
         else:msg={'content':'连接正常。'}
         if ollama:return httpx.Response(200,json={'message':msg,'done':True})
         return httpx.Response(200,json={'choices':[{'message':{'role':'assistant',**msg},'finish_reason':'tool_calls' if msg.get('tool_calls') else 'stop'}]})

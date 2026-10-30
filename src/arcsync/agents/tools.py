@@ -2,7 +2,7 @@
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from ..core.store import connect
 from ..core.service import Problem
-from . import access
+from . import access, confirmations
 from .policy import POLICY
 from ..data_models.vectors import hybrid_search
 from ..data_models.knowledge import available_chunks
@@ -50,7 +50,7 @@ DESCRIPTIONS={
  'update_access_case':'完整替换本人查阅需求。新建时case_id=null、revision=0；修改须提供当前版本。空字段表示待补充。不是正式申请。',
  'get_access_case':'读取本人事项及当前版本，case_id=null时列出最近事项，供多轮继续。',
  'validate_access_request':'须先读取选定页和更正正文并核对有效性；服务端校验当前事项版本。passed只表示可以创建草稿。',
- 'create_access_draft':'只在用户明确允许本次创建草稿且当前版本校验passed后调用。必须使用有效校验凭证，不提交审批。',
+ 'create_access_draft':'当前版本校验passed后请求创建草稿；执行器会先暂停并展示具体内容，员工确认后才保存，不提交审批。',
  'get_access_rules':'读取平台查阅协同流程和人工审核边界，回答流程问题时使用。',
  'search_archives':'在当前账号授权且有效的资料中进行语义与关键词混合检索，返回来源编号。不得改变开放范围。',
  'read_archive_page':'读取已导入的指定档案扫描页及纸质页码；未导入页文本时只返回目录摘要并说明限制。',
@@ -76,7 +76,7 @@ class ToolBox:
     def __init__(self,user,embedding,allow_restricted,create_authorized=False):
         self.user=user;self.embedding=embedding;self.allow_restricted=allow_restricted
         self.sources=[]
-        self.reads={};self.checks={};self.create_authorized=create_authorized
+        self.reads={};self.checks={};self.create_authorized=create_authorized;self.execution_context={}
 
     def remember(self,chunk):
         key=chunk['id']
@@ -89,7 +89,7 @@ class ToolBox:
         self.sources.append(source);return source
 
     async def schemas(self):
-        allowed=self.create_authorized and self.user.get('user_id') and await run_in_threadpool(access.can_create,self.user)
+        allowed=self.user.get('user_id') and await run_in_threadpool(access.can_create,self.user)
         return [s for s in TOOL_SCHEMAS if allowed or s['function']['name']!='create_access_draft']
 
     def evidence(self,kind,title,content,**fields):
@@ -118,9 +118,8 @@ class ToolBox:
             return await run_in_threadpool(access.validate,self.user,args.case_id,args.revision,self.reads,self.checks)
         if name=='create_access_draft':
             if len(self.sources)>=12:raise Problem('本次依据数量达到上限，请在新一轮创建草稿',409)
-            result=await run_in_threadpool(access.create,self.user,args.case_id,args.revision,args.validation_id,self.create_authorized)
-            result['source']=self.evidence('access_case','查阅申请草稿',str(result),case_id=args.case_id,revision=args.revision)
-            return result
+            confirmation=await run_in_threadpool(confirmations.prepare,self.user,args.case_id,args.revision,args.validation_id,self.execution_context)
+            return {'status':'waiting_confirmation','confirmation':confirmation,'preview_text':confirmations.text(confirmation['preview'])}
         if name=='search_archives':
             chunks=await hybrid_search(self.user,args.query,self.embedding,self.allow_restricted,args.limit,args.category,args.year)
             return {'sources':[self.remember(c) for c in chunks],'notice':'目录摘要与人工提供文本不等同于经过核验的原卷证据'}

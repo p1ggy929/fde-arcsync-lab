@@ -66,7 +66,7 @@ async def chat(request:Request,data:dict=Depends(json_body),user=Depends(current
     async def guard():
         if await request.is_disconnected():raise asyncio.CancelledError()
         latest=await run_in_threadpool(current_user,request)
-        if latest['role']!=user['role']:raise Problem('账号已变化，请重新提问',401)
+        if latest['user_id']!=user['user_id'] or latest['role']!=user['role']:raise Problem('账号已变化，请重新提问',401)
     async def events():
         try:
             options={'create_authorized':True} if data.get('allow_draft') else {}

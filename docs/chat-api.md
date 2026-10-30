@@ -1,6 +1,6 @@
 # 多轮档案智能查阅接口与使用说明
 
-页面入口：`/chat-ui`，或在员工门户/管理后台侧栏点击“智能查阅”。页面使用HTML与原生JavaScript，不依赖外部CDN。
+在员工门户/管理后台侧栏点击“智能查阅”，在当前工作区内切换到 `#chat` 视图。旧入口 `/chat-ui` 自动转到对应工作台，保留指定会话。页面使用HTML与原生JavaScript，不依赖外部CDN。
 
 ## 接口
 
@@ -126,4 +126,4 @@ user_accounts为独立账号表，user_id与岗位分离；session_identities将
 
 ## 申请草稿授权
 
-`POST /chat` 可选 `allow_draft: boolean`，默认 false，由用户勾选输入区授权选项后发送。该值从HTTP请求注入工具上下文，模型参数不能覆盖。事项和校验凭证跨轮持久化；无来源时允许追问，不强制检索。草稿接口、工具前置条件和证据限制见 [档案智能体](autonomous-agent.md)。
+`POST /chat`的allow_draft布尔字段为旧客户端兼容字段，不能替代具体内容确认。工具校验通过后，请求创建触发preview_delta和confirmation_required，结束本次流；员工确认后才保存草稿。刷新可通过确认列表接口恢复。完整事件和恢复协议见 [Harness编排](agent-harness.md)。

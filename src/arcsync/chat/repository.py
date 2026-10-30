@@ -89,7 +89,7 @@ def finish(user,turn,status,answer='',sources=None,citations=None,code=0,message
     with chat_connect() as db:
         db.execute('BEGIN IMMEDIATE');owned(db,user,turn['session_id'])
         cursor=db.execute("UPDATE chat_messages SET content=?,status=?,sources_json=?,citations_json=?,error_code=?,error_message=?,completed_at=? WHERE id=? AND session_id=? AND status='generating'",
-                          (answer if status=='completed' else '',status,json.dumps(sources or [],ensure_ascii=False),json.dumps(citations or [],ensure_ascii=False),code,message,now(),turn['message_id'],turn['session_id']))
+                          (answer if status in ('completed','waiting_confirmation') else '',status,json.dumps(sources or [],ensure_ascii=False),json.dumps(citations or [],ensure_ascii=False),code,message,now(),turn['message_id'],turn['session_id']))
         if not cursor.rowcount and status=='completed':raise Problem('本次生成已失效，回答未保存',409)
         db.execute('UPDATE chat_sessions SET updated_at=? WHERE id=?',(now(),turn['session_id']))
 
@@ -134,10 +134,24 @@ def messages(user,session_id,limit=20,before_turn=None):
     for row in rows:
         item={k:row[k] for k in ('id','turn_no','role','content','status','error_code','error_message','created_at','completed_at')}
         item['citations']=json.loads(row['citations_json'])
-        if row['role']=='assistant' and row['status']=='completed':
+        if row['role']=='assistant' and row['status'] in ('completed','waiting_confirmation'):
             try:_validate_sources(user,json.loads(row['sources_json']))
             except Problem:
                 # 旧回答的权限/来源变化时不回传正文和片段，保留一个可理解的占位。
                 item.update(content='',citations=[],status='unavailable',error_code=40902,error_message='依据或授权已变化，请重新提问')
         items.append(item)
     return {'session':session,'messages':items,'has_more':more,'next_before_turn':min(visible) if more else None}
+
+
+def reconcile_confirmation(user,confirmation):
+    """Idempotent mirror; business checkpoint is authoritative across DB boundaries."""
+    if not confirmation.get('session_id') or not confirmation.get('message_id'):return
+    result=confirmation.get('result')
+    if not result:return
+    status='completed' if result['status']=='completed' else 'cancelled'
+    message=result['message']
+    if result.get('draft'):message+='；草稿编号：'+result['draft']['id']+'。请到申请草稿页人工提交。'
+    with chat_connect() as db:
+        owned(db,user,confirmation['session_id'])
+        db.execute("UPDATE chat_messages SET status=?,content=?,sources_json='[]',citations_json='[]',error_code=0,error_message=?,completed_at=? WHERE id=? AND session_id=? AND role='assistant' AND status IN ('waiting_confirmation','cancelled','failed','generating')",(status,message,message if status=='cancelled' else '',now(),confirmation['message_id'],confirmation['session_id']))
+        db.execute('UPDATE chat_sessions SET updated_at=? WHERE id=?',(now(),confirmation['session_id']))

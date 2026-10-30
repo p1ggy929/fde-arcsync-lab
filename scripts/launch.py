@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import runpy
 from pathlib import Path
 import signal
 import socket
@@ -103,7 +104,12 @@ def main():
     browser = not args.no_browser and os.environ.get('ARCSYNC_OPEN_BROWSER', '1') != '0'
     if not args.check and port_in_use(args.port):
         if health(url):
-            say('检测到该端口的 ArcSync 已启动，直接打开现有平台。')
+            with build_opener(ProxyHandler({})).open(url+'/api/health',timeout=2) as response:
+                running=json.loads(response.read(8192))
+            expected=runpy.run_path(str(ROOT/'src'/'arcsync'/'core'/'runtime.py'))['BUILD_ID']
+            if running.get('build_id')!=expected:
+                raise RuntimeError('检测到平台代码已更新，但端口上仍运行旧服务。请在原启动窗口按 Ctrl+C 停止后重新启动；已保存数据会保留。')
+            say('检测到当前版本的 ArcSync 已启动，直接打开现有平台。')
             if os.environ.get('ARCSYNC_DB'):
                 say('已有服务沿用其启动时的数据配置；本次 ARCSYNC_DB 不会改变该服务。')
             open_page(url, browser)

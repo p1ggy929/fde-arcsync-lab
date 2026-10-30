@@ -69,7 +69,7 @@ class AdminTests(unittest.TestCase):
                 captured.append(messages[0]['content'])
                 if not any(m['role']=='tool' for m in messages):
                     return {'role':'assistant','content':'','tool_calls':[{'id':'policy','function':{'name':'get_access_rules','arguments':'{}'}}]},{}
-                return {'content':'可以回答'},{}
+                return {'content':'请遵循流程 [C1]。'},{}
             async def stream(self,messages,*args):
                 captured.append(messages[0]['content'])
                 yield {'text':'请遵循流程 [C1]。'}
