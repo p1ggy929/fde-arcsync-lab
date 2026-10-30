@@ -15,7 +15,7 @@ flowchart TB
         CON[ASGI 并发 / 同步操作线程池]
         SSE[SSE 流式检索 / 断连取消]
     end
-    L3[第三层：智能体层 · 已实现\n意图识别 → 授权检索 → 原生工具编排 → 生成与引用校验]
+    L3[第三层：智能体层 · 已实现\n自主选择工具 → 授权与草稿校验 → 生成与引用校验]
     L4[第四层：数据模型层 · 已实现\n云端 API / Ollama / vLLM + FAISS + MySQL / SQLite]
     A -->|服务端根据账号返回 home| C
     A -->|服务端根据账号返回 home| B
@@ -56,7 +56,7 @@ flowchart TB
 
 ## 智能体层
 
-`agents/orchestrator.py` 负责模型意图结构校验、初始检索、最多 4 轮 / 8 次工具 / 12 条来源、生成、来源和版本再校验；`agents/tools.py` 提供 `search_archives`、`read_archive_page`、`get_business_status` 三个只读工具；`agents/repository.py` 保存运行、步骤、token 用量和审计关联。每个岗位最多一个运行，单进程总计最多四个，繁忙返回429。
+`agents/orchestrator.py` 负责自主工具循环（最多10轮、20次工具、12条来源）、生成、来源和版本再校验；`agents/tools.py` 提供严格 Function Calling 工具；`agents/access.py` 负责本人查阅事项、版本绑定校验凭证、幂等草稿及人工提交，执行顺序不能由模型绕过。工具执行均保存人员、参数、结果与时间。详见 [档案智能体](autonomous-agent.md)。
 
 模型通过原生 tool_calls 选择工具与参数，服务端按白名单及当前身份验证；数据库或系统命令不作为模型工具暴露。失败、重复调用、断连、超长输出、无效引用会停止，不保存为成功答案。流式 token 标为草稿，最终通过编号、权限、版本及内容校验才显示为辅助结果。该校验不等于语义真实性审查。
 
@@ -71,3 +71,7 @@ flowchart TB
 - `data_models/mysql.py`：全业务 MySQL 建表、参数化连接适配、业务写锁、审计触发器；core/store.py 负责选用 MySQL 或兼容的 SQLite。
 
 新增表：document_chunks、vector_embeddings、agent_runs、agent_steps。MySQL 不会自动覆盖或搬迁旧 SQLite；显式迁移脚本只允许空目标且保留源文件。原档案库/OCR/授权台连接协议继续由 integrations/base.py 预留。
+
+## 多轮聊天扩展
+
+`chat/routes.py` 将既有编排转换为已确认的聊天SSE协议，负责握手前错误、180秒总时限、断连取消和心跳；`chat/repository.py` 使用SQLite短事务保存会话/消息，按独立user_id授权并加载最近6轮有效历史。`core/accounts.py` 兼容迁移具名身份；前端为独立chat.html/chat.js/chat.css。已有智能体的run增加history/persist参数，聊天使用自己的消息表，不复制到旧岗位运行历史。

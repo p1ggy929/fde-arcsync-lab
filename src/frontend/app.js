@@ -66,7 +66,7 @@ function toast(message, error=false) {
 }
 let overview=null, searchController=null;
 const isAdmin = () => S?.user.portal==='admin';
-const visibleNavigation = () => navigation.filter(n=>isAdmin()||!['metrics','settings','models'].includes(n[0])).map(n=>!isAdmin()&&n[0]==='reviews'?[n[0],'我的交接',n[2]]:n);
+const visibleNavigation = () => navigation.filter(n=>n[0]!=='agent').filter(n=>isAdmin()||!['metrics','settings','models'].includes(n[0])).map(n=>!isAdmin()&&n[0]==='reviews'?[n[0],'我的交接',n[2]]:n);
 const portalLabel = () => isAdmin()?'管理后台 · B 端':'员工门户 · C 端';
 async function refresh() {
  S=await api('state');
@@ -85,7 +85,7 @@ function sidebar(){
  const pending=S.businesses.filter(b=>owned(b)&&b.status!=='已交付').length;
  const issues=S.issues.filter(i=>i.status!=='已处理').length;
  const handoffs=S.handoffs.filter(x=>x.receiver===S.user.role&&x.status==='待接手').length;
- return `<aside class="sidebar"><a class="brand" href="#dashboard" aria-label="云州档案工作台"><div class="brandmark">${icon('archive')}</div><div><strong>云州档案</strong><small>YUNZHOU ARCHIVES</small></div></a><div class="nav-label">${portalLabel()}</div><nav class="nav">${visibleNavigation().map(([id,title,i],n)=>`${id==='metrics'?'<div class="nav-label">评估与管理</div>':''}<a href="#${id}" class="${current===id||current==='detail'&&id==='businesses'?'active':''}" ${current===id?'aria-current="page"':''} title="${title}">${icon(i)}<span>${title}</span>${id==='dashboard'&&pending?`<span class="nav-count">${pending}</span>`:id==='issues'&&issues?`<span class="nav-count">${issues}</span>`:id==='reviews'&&handoffs?`<span class="nav-count">${handoffs}</span>`:''}</a>`).join('')}</nav><div class="sidebar-bottom"><div class="pilot-card"><strong>有边界的智能辅助</strong><p>每一条建议都关联原卷依据<br>每一次交接都有明确责任</p><span>公开档案 · 小范围试点 ${icon('arrow')}</span></div><div class="sidebar-foot"><span class="dot"></span> 本地服务运行中 · v0.3.0</div></div></aside>`;
+ return `<aside class="sidebar"><a class="brand" href="#dashboard" aria-label="云州档案工作台"><div class="brandmark">${icon('archive')}</div><div><strong>云州档案</strong><small>YUNZHOU ARCHIVES</small></div></a><div class="nav-label">${portalLabel()}</div><nav class="nav"><a href="/access-drafts"><span>查阅申请草稿</span></a>${isAdmin()?'<a href="/admin/manage"><span>制度与问答管理</span></a>':''}<a href="/chat-ui" title="智能查阅">${icon('chat')}<span>智能查阅</span></a>${visibleNavigation().map(([id,title,i],n)=>`${id==='metrics'?'<div class="nav-label">评估与管理</div>':''}<a href="#${id}" class="${current===id||current==='detail'&&id==='businesses'?'active':''}" ${current===id?'aria-current="page"':''} title="${title}">${icon(i)}<span>${title}</span>${id==='dashboard'&&pending?`<span class="nav-count">${pending}</span>`:id==='issues'&&issues?`<span class="nav-count">${issues}</span>`:id==='reviews'&&handoffs?`<span class="nav-count">${handoffs}</span>`:''}</a>`).join('')}</nav><div class="sidebar-bottom"><div class="pilot-card"><strong>有边界的智能辅助</strong><p>每一条建议都关联原卷依据<br>每一次交接都有明确责任</p><span>公开档案 · 小范围试点 ${icon('arrow')}</span></div><div class="sidebar-foot"><span class="dot"></span> 本地服务运行中 · v0.3.0</div></div></aside>`;
 }
 function shell(content){
  const name=navigation.find(n=>n[0]===current)?.[1] || '业务详情';
@@ -209,6 +209,7 @@ function render(){
 function route(){
  searchController?.abort();agentController?.abort();
  const [view,id]=(location.hash.slice(1)||'dashboard').split('/');
+ if(view==='agent'){location.replace('/chat-ui');return;}
  current=(visibleNavigation().some(n=>n[0]===view)||view==='detail')?view:'dashboard';
  if(view==='detail')selectedCase=id;
  if(S){render();window.scrollTo(0,0);}

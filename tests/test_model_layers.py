@@ -47,9 +47,12 @@ class ProviderFixture:
             msg={'content':json.dumps({'intent':'retrieve','query':'总体规划','business_id':'','category':'','year':None})}
         elif body.get('tools'):
             self.tool_round+=1
-            if self.tool_round==1 or self.repeated:
+            if self.tool_round==1:
+                args={'query':'总体规划','limit':5,'category':'','year':None}
+                msg={'content':'','tool_calls':[{'id':'call_search','type':'function','function':{'name':'run_sql' if self.unknown else 'search_archives','arguments':args if ollama else json.dumps(args)}}]}
+            elif self.tool_round==2 or self.repeated:
                 args={'document_id':'YZ-CJ-1986-001','scan_page':6}
-                msg={'content':'','tool_calls':[{'id':'call_page','type':'function','function':{'name':'run_sql' if self.unknown else 'read_archive_page','arguments':args if ollama else json.dumps(args)}}]}
+                msg={'content':'','tool_calls':[{'id':'call_page','type':'function','function':{'name':'read_archive_page','arguments':args if ollama else json.dumps(args)}}]}
             else:msg={'content':'证据已足够。'}
         else:msg={'content':'连接正常。'}
         if ollama:return httpx.Response(200,json={'message':msg,'done':True})
@@ -94,7 +97,7 @@ class ModelLayerTests(unittest.TestCase):
         self.assertGreater(saved['usage']['model_calls'],2)
         with self.assertRaises(Problem):detail(ENGINEER,result['run_id'])
         tool_requests=[b for _,b in fixture.calls if b.get('tools')]
-        self.assertIsInstance(tool_requests[-1]['messages'][3]['tool_calls'][0]['function']['arguments'],dict)
+        self.assertIsInstance(next(m for m in tool_requests[-1]['messages'] if m.get('tool_calls'))['tool_calls'][0]['function']['arguments'],dict)
     def test_openai_compatible_cloud_and_vllm_protocol(self):
         for provider in ('cloud','vllm'):
             with self.subTest(provider=provider):

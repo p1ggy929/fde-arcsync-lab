@@ -118,6 +118,8 @@ def mutate(db,user,action,data):
         t=now()
         db.execute('INSERT INTO businesses(id,title,applicant,purpose,status,owner,created,updated) VALUES(?,?,?,?,?,?,?,?)',
             (bid,title,applicant,purpose,'待权限核验','reviewer',t,t))
+        if user.get('user_id'):
+            db.execute('INSERT INTO business_requesters VALUES(?,?)',(bid,user['user_id']))
         event(db,bid,user,'创建查阅申请',purpose)
         audit(db,user,'创建查阅申请',bid)
         return {'id':bid}

@@ -15,7 +15,9 @@ def available_chunks(user,allow_restricted=False):
             if not rows:
                 rows=[{'id':doc['id']+':'+doc['version']+':catalog','document_id':doc['id'],'version':doc['version'],
                        'scan_page':None,'paper_page':None,'content':doc['summary'],'source':'catalog'}]
+            file=db.execute('SELECT filename FROM document_files WHERE document_id=? AND version=?',(doc['id'],doc['version'])).fetchone()
             for row in rows:
+                row['filename']=file['filename'] if file else doc['title']
                 row.update(title=doc['title'],level=doc['level'],category=doc['category'],year=doc['year'],correction=doc['correction'])
                 chunks.append(row)
         return chunks
@@ -40,6 +42,9 @@ def import_document(user,data):
     # Existing business citation mapping assumes a constant paper page offset.
     offsets={paper-scan+1 for scan,paper,_ in checked}
     if len(offsets)!=1 or min(offsets)<1:raise Problem('当前业务只支持固定页码偏移，请先人工整理页码映射')
+    # 源文件名由导入人员提供；缺少时使用资料名称，不伪造PDF文件名。
+    filename=data.get('filename') or title
+    if not isinstance(filename,str) or len(filename)>255 or '/' in filename or '\\' in filename:raise Problem('源文件名无效，请仅填写文件名')
     summary=checked[0][2][:800]
     with connect() as db:
         db.execute('BEGIN IMMEDIATE')
@@ -53,6 +58,7 @@ def import_document(user,data):
                        (title,category,year,version,max(seen),summary,next(iter(offsets)),'有效',now(),identifier))
         else:
             db.execute('INSERT INTO documents VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(identifier,title,category,year,level,version,max(seen),'有效','',summary,next(iter(offsets)),now()))
+        db.execute('INSERT INTO document_files VALUES(?,?,?)',(identifier,version,filename))
         for scan,paper,content in checked:
             chunk_id=hashlib.sha256(f'{identifier}|{version}|{scan}'.encode()).hexdigest()
             db.execute('INSERT INTO document_chunks VALUES(?,?,?,?,?,?,?)',(chunk_id,identifier,version,scan,paper,content,'imported'))
@@ -67,9 +73,20 @@ def valid_sources(user,sources,allow_restricted):
             from ..agents.orchestrator import POLICY
             if source['content']!=POLICY:raise Problem('流程规则已变化，请重新提问',409)
             continue
+        if source.get('kind')=='validity':
+            from ..agents.access import inspect, fingerprint
+            snapshot,_=inspect(user,source['document_id'],source['version'])
+            if fingerprint(snapshot)!=source['fingerprint']:raise Problem('档案核验依据已变化，请重新提问',409)
+            continue
+        if source.get('kind')=='access_case':
+            from ..agents.access import view
+            if view(user,source['case_id'])['revision']!=source['revision']:raise Problem('查阅事项已变化，请重新提问',409)
+            continue
         if source.get('kind')=='business':
             with connect() as db:
-                row=db.execute('SELECT revision FROM businesses WHERE id=?',(source['business_id'],)).fetchone()
+                row=db.execute('SELECT * FROM businesses WHERE id=?',(source['business_id'],)).fetchone()
+                from ..agents.access import business_visible
+                if row and not business_visible(db,user,row):raise Problem('业务不在授权范围内',403)
             if not row or row['revision']!=source['revision']:raise Problem('业务状态已变化，请重新提问',409)
             continue
         current=allowed.get(source['chunk_id'])

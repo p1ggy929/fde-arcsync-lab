@@ -82,6 +82,14 @@ def init_db(path=None):
             salt = secrets.token_hex(16)
             password = hashlib.pbkdf2_hmac('sha256', os.environ.get('ARCSYNC_DEMO_PASSWORD', 'ArcSync2026!').encode(), salt.encode(), 120000).hex()
             db.execute('INSERT OR IGNORE INTO users VALUES(?,?,?,?)', (role,name,salt,password))
+        if getattr(db,'dialect','sqlite')=='mysql':
+            db.execute('CREATE TABLE IF NOT EXISTS jwt_keys(id INT PRIMARY KEY,secret VARCHAR(128) NOT NULL) ENGINE=InnoDB')
+        else:
+            db.execute('CREATE TABLE IF NOT EXISTS jwt_keys(id INTEGER PRIMARY KEY,secret TEXT NOT NULL)')
+        from ..agents.access import initialize as initialize_access
+        initialize_access(db)
+        from .accounts import migrate_accounts
+        migrate_accounts(db)
         if db.execute('SELECT COUNT(*) FROM documents').fetchone()[0]:
             return
         t = now()

@@ -9,3 +9,6 @@ faiss-cpu==1.15.1
 numpy==2.3.5
 PyMySQL[rsa]==1.2.3
 python-dotenv==1.2.4
+
+# Knowledge PDF text extraction (scanned PDFs require prior OCR).
+pypdf==6.1.1

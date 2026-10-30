@@ -42,8 +42,8 @@ class Endpoint:
 class ModelSettings:
     llm: Endpoint
     embedding: Endpoint
-    max_rounds: int = 4
-    max_tools: int = 8
+    max_rounds: int = 10
+    max_tools: int = 20
     max_tokens: int = 1600
     restricted_context: bool = False
 

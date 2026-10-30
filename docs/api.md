@@ -102,3 +102,7 @@ document 可出现零次或多次。握手前鉴权失败返回 HTTP 401；握�
 智能体流事件：`start`（run_id）→ `step` / `intent` / `tool`（可多次）→ `sources` → `token`（草稿）→ `done`（最终辅助回答、来源、usage）。失败发送 `error`，包括 `discard_draft:true`，客户端应清除草稿。握手前配置错误503、暂停409、繁忙429；同岗位最多一个运行，单进程最多四个。停止或断连取消上游请求并保存 cancelled。没有自动重试或后台重放。
 
 `done` 的引用校验检查来源编号、授权、当前版本与内容；事实正确性和原卷对应仍需人工审查。usage 只累计提供方返回的对话 token，不代表全部费用。工具清单与第三、四层边界见架构说明。
+
+## 多轮聊天
+
+新增 `POST /chat`、`GET /chat/sessions`、`GET /chat/sessions/{id}/messages`。统一code/message/data中文错误，SSE提供session/status/delta/citations/done及终止error事件。接口细节、SQLite表、用户唯一ID及上下文规则见 [聊天接口](chat-api.md)。

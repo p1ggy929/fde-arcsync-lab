@@ -7,4 +7,6 @@ export PYTHONPATH="$PWD/src${PYTHONPATH:+:$PYTHONPATH}"
 # Automated tests always use disposable SQLite, never an operator's MySQL.
 export ARCSYNC_DATABASE_URL=''
 node --check src/frontend/app.js
+node --check src/frontend/manage.js
+node --check src/frontend/chat.js
 "$ARCSYNC_PYTHON" -m unittest discover -s tests -v

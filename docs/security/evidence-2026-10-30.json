@@ -1,0 +1,47 @@
+{
+  "SEC01_default_admin_login": {
+    "director": 200,
+    "protector": 200,
+    "engineer": 200
+  },
+  "SEC01_env_change_does_not_rotate_existing_password": true,
+  "SEC03_login_throttle": {
+    "attempts": 12,
+    "statuses": [
+      401
+    ],
+    "next_valid_login": 200
+  },
+  "SEC02_cross_business_read": true,
+  "SEC02_same_role_sessions_share_history": true,
+  "SEC06_plain_http_cookie": {
+    "httponly": true,
+    "same_site_strict": true,
+    "secure": false
+  },
+  "non_public_file_routes": {
+    "/.env": 404,
+    "/data/arcsync.sqlite3": 404,
+    "/data/vectors/index.faiss": 404,
+    "/discovery-report.md": 404
+  },
+  "SEC06_https_cookie_secure": true,
+  "unknown_host_accepted": 200,
+  "SEC04_diagnostics_bypass_agent_limit": {
+    "requests": 6,
+    "statuses": [
+      200
+    ],
+    "mock_upstream_calls": {
+      "chat": 6,
+      "embed": 6
+    }
+  },
+  "employee_backend_rejection": 403,
+  "restricted_document_rejection": 404,
+  "SEC05_mysql_default_tls": {
+    "allows_fallback": true,
+    "verifies_certificate": false,
+    "verifies_hostname": false
+  }
+}

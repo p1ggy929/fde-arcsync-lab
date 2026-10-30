@@ -7,6 +7,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from .api.routes import router
 from .api.agent_routes import router as agent_router
+from .chat.routes import router as chat_router
+from starlette.exceptions import HTTPException
 from .api.security import current_user
 from .core.store import ROOT, init_db
 from .core.service import Problem
@@ -26,19 +28,31 @@ app=FastAPI(title='ArcSync 服务层',version='0.3.0',lifespan=lifespan,
             swagger_ui_parameters={'persistAuthorization':False})
 app.include_router(router)
 app.include_router(agent_router)
+app.include_router(chat_router)
+from .admin.routes import router as admin_router
+app.include_router(admin_router)
+from .agents.access_routes import router as access_router
+app.include_router(access_router)
 
 @app.exception_handler(Problem)
 async def problem_handler(request,exc):
-    return JSONResponse({'error':exc.message},status_code=exc.status)
+    # 保留error别名兼容旧页面，新接口统一使用code/message/data。
+    return JSONResponse({'code':exc.status*100+1,'message':exc.message,'data':None,'error':exc.message},status_code=exc.status)
 
 @app.exception_handler(RequestValidationError)
 async def validation_handler(request,exc):
-    return JSONResponse({'error':'请求参数格式无效'},status_code=400)
+    return JSONResponse({'code':40001,'message':'请求参数格式无效','data':None,'error':'请求参数格式无效'},status_code=400)
 
 @app.exception_handler(Exception)
 async def unexpected_handler(request,exc):
     logging.getLogger('arcsync').error('Request failed: %s',type(exc).__name__)
-    return JSONResponse({'error':'操作未完成，请刷新检查后重试'},status_code=500)
+    return JSONResponse({'code':50001,'message':'服务处理失败，请稍后重试','data':None,'error':'服务处理失败，请稍后重试'},status_code=500)
+
+@app.exception_handler(HTTPException)
+async def http_error_handler(request,exc):
+    # 框架产生的404/405等错误也返回中文，避免默认英文detail响应。
+    message={404:'页面或接口不存在',405:'请求方法不支持'}.get(exc.status_code,'请求未完成，请检查请求参数')
+    return JSONResponse({'code':exc.status_code*100+1,'message':message,'data':None,'error':message},status_code=exc.status_code,headers=exc.headers)
 
 @app.middleware('http')
 async def headers(request: Request,call_next):
@@ -63,8 +77,8 @@ def frontend(page: str,request: Request):
             return RedirectResponse('/',status_code=303)
         if page != user['home'].lstrip('/'):
             return RedirectResponse(user['home'],status_code=303)
-    files={'':'index.html','index.html':'index.html','portal':'index.html','admin':'index.html',
-           'app.js':'app.js','style.css':'style.css','favicon.svg':'favicon.svg'}
+    files={'admin/manage.css':'manage.css','admin/manage.js':'manage.js','':'index.html','index.html':'index.html','portal':'index.html','admin':'index.html',
+           'chat-ui':'chat.html','chat.js':'chat.js','chat.css':'chat.css','app.js':'app.js','style.css':'style.css','favicon.svg':'favicon.svg'}
     if page not in files:
         raise Problem('页面或接口不存在',404)
     return FileResponse(FRONTEND/files[page])

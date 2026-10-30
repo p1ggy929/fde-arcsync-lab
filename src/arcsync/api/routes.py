@@ -7,6 +7,7 @@ from starlette.concurrency import run_in_threadpool
 from ..core.store import connect
 from ..core.service import Problem, state, mutate
 from .security import current_user, admin_user, login
+from .jwt_tokens import session_id
 from .queries import search_documents, document_page
 
 router = APIRouter(prefix='/api')
@@ -44,15 +45,19 @@ def health():
 
 @router.post('/login',openapi_extra=LOGIN_REQUEST)
 def sign_in(request: Request, data: dict = Depends(json_body)):
-    user, token = login({**data,'_old_token':request.cookies.get('arcsync_session','')})
-    response=JSONResponse(user)
+    try: old=session_id(request)
+    except Problem: old=''
+    user, token = login({**data,'_old_token':old})
+    response=JSONResponse({**user,'access_token':token,'token_type':'bearer','expires_in':28800})
     response.set_cookie('arcsync_session',token,max_age=28800,httponly=True,samesite='strict',secure=request.url.scheme=='https')
     return response
 
 @router.post('/logout',openapi_extra=JSON_REQUEST)
 def sign_out(request: Request, data: dict = Depends(json_body), user=Depends(current_user)):
+    identifier=session_id(request)
     with connect() as db:
-        db.execute('DELETE FROM sessions WHERE token=?',(request.cookies.get('arcsync_session'),))
+        db.execute('DELETE FROM session_identities WHERE token=?',(identifier,))
+        db.execute('DELETE FROM sessions WHERE token=?',(identifier,))
     response=JSONResponse({'ok':True})
     response.delete_cookie('arcsync_session',httponly=True,samesite='strict')
     return response

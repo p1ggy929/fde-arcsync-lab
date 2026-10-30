@@ -54,6 +54,7 @@ def run_detail(identifier:str,user=Depends(current_user)):
 @router.post('/agent/chat/stream',openapi_extra=JSON_REQUEST)
 async def chat(request:Request,data:dict=Depends(json_body),user=Depends(current_user)):
     question=text(data,'question',2000)
+    if type(data.get('allow_draft',False)) is not bool:raise Problem('allow_draft须为布尔值')
     try:agent=Orchestrator(user)
     except ModelError as error:raise Problem(str(error),503) from None
     def active():
@@ -68,7 +69,8 @@ async def chat(request:Request,data:dict=Depends(json_body),user=Depends(current
         if latest['role']!=user['role']:raise Problem('账号已变化，请重新提问',401)
     async def events():
         try:
-            async with aclosing(agent.run(question,guard)) as stream:
+            options={'create_authorized':True} if data.get('allow_draft') else {}
+            async with aclosing(agent.run(question,guard,**options)) as stream:
                 async for event in stream:
                     yield f'event: {event["event"]}\ndata: {json.dumps(event["data"],ensure_ascii=False)}\n\n'
         except Exception:

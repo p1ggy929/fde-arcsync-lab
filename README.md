@@ -4,6 +4,8 @@
 
 **当前版本：四层平台，预置数据为合成资料。已支持真实 LLM 接入、FAISS 和 MySQL；模型默认未配置，未接入真实档案与 OCR。** 原始需求来自合成访谈，真实接入、授权与验收口径仍需业务确认。
 
+公网部署前请先阅读 [安全检查报告（2026-10-30）](docs/security-review-2026-10-30.md)。当前默认配置存在上线阻塞项，功能测试通过不等于可安全对公网开放。
+
 ## 快速运行
 
 macOS 双击项目根目录的 **[启动项目.command](启动项目.command)**，自动检查 Python、创建独立环境、按需安装依赖、启动服务并打开浏览器。首次运行需要 Python 3.11+，缺少依赖时需要联网；依赖齐全后可离线启动。
@@ -34,7 +36,7 @@ PORT=8877 sh scripts/start.sh
 
 ## 双端与四层架构
 
-已实现 **入口层**（双端）、**FastAPI 服务层**、**智能体层**（意图→检索→工具→生成）与 **数据模型层**（云端/Ollama/vLLM、FAISS、MySQL/SQLite），见 [架构说明](docs/architecture.md)。智能体接入方式与验证边界见 [模型配置指南](docs/model-setup.md)，真实联调按 [智能体验收流程](docs/agent-test-guide.md) 执行。
+已实现 **入口层**（双端）、**FastAPI 服务层**、**智能体层**（自主选择工具→强制校验→生成）与 **数据模型层**（云端/Ollama/vLLM、FAISS、MySQL/SQLite），见 [架构说明](docs/architecture.md)。智能体接入方式与验证边界见 [模型配置指南](docs/model-setup.md)，真实联调按 [智能体验收流程](docs/agent-test-guide.md) 执行。
 
 | 工作端 | 体验账号 | 主要功能 |
 | --- | --- | --- |
@@ -44,6 +46,12 @@ PORT=8877 sh scripts/start.sh
 页面预览：[欢迎页](docs/welcome-preview.png) · [管理后台](docs/admin-portal-preview.png)。
 
 统一入口：`/`。账号由服务端分配所属端，客户端不能自行提升权限。更换账号：右上角姓名 → 退出并更换账号 → 欢迎页登录。接口说明：[/api/docs](http://127.0.0.1:8765/api/docs)，OpenAPI：`/api/openapi.json`。档案检索已使用 SSE 逐条接收授权结果。
+
+## 多轮档案智能查阅
+
+登录后点击侧栏“智能查阅”，或打开 `/chat-ui`。支持SSE逐字回答、文件名和条文片段引用、最近6轮完整上下文、会话恢复与停止生成。聊天保存在SQLite，按独立user_id隔离。接口为 `POST /chat`，详细协议、错误码和独立账号创建方法见 [聊天接口与使用说明](docs/chat-api.md)。
+
+旧演示账号可继续登录；不同员工应创建不同用户名，不能共用同一个演示账号来实现人员隔离。升级后请重新登录。模型未配置时明确提示，已有聊天仍可查看。
 
 ## 配置智能查阅
 
@@ -128,3 +136,9 @@ data/                    运行时本地数据库与样例说明
 需求来源及限制见 [发现报告](discovery-report.md)，详细实现见 [设计说明](docs/design.md)、[接口文档](docs/api.md)、[验收说明](docs/acceptance.md)。
 
 本项目代码采用 MIT 许可证，第三方或真实档案的使用权限需另行取得。
+
+### 制度与问答管理后台
+
+管理员登录后在侧栏进入“制度与问答管理”（`/admin/manage`），支持 Markdown/PDF 上传并向量化、数据库提示词即时更新、按人员与时间审计问答及人工标记疑似越权查阅／异常利用线索。详见 [管理后台说明](docs/admin-workspace.md) 和 [默认系统提示词](docs/default-system-prompt.md)。
+
+智能体可自主检索、读取卷页、核对更正关系、收集查阅需求，并在服务端校验通过后创建申请草稿。聊天输入区勾选“允许本次创建查阅申请草稿”后发送；草稿在 `/access-drafts` 人工确认提交，进入原有“待权限核验”流程。工具约束与接口见 [档案智能体设计与使用](docs/autonomous-agent.md)。

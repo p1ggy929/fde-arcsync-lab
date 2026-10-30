@@ -73,6 +73,9 @@ SCHEMA = [
 """CREATE TABLE IF NOT EXISTS vector_embeddings(id VARCHAR(64) PRIMARY KEY,chunk_id VARCHAR(160),fingerprint VARCHAR(64),content_hash VARCHAR(64),vector_json LONGTEXT)""",
 """CREATE TABLE IF NOT EXISTS agent_runs(id VARCHAR(64) PRIMARY KEY,role VARCHAR(32),question TEXT,status VARCHAR(32),answer LONGTEXT,sources LONGTEXT,created VARCHAR(40),updated VARCHAR(40),usage TEXT,error TEXT)""",
 """CREATE TABLE IF NOT EXISTS agent_steps(id BIGINT PRIMARY KEY AUTO_INCREMENT,run_id VARCHAR(64),at VARCHAR(40),kind VARCHAR(32),detail LONGTEXT)""",
+"""CREATE TABLE IF NOT EXISTS user_accounts(user_id VARCHAR(64) PRIMARY KEY,username VARCHAR(100) UNIQUE NOT NULL,role VARCHAR(32) NOT NULL,name VARCHAR(100) NOT NULL,salt VARCHAR(64) NOT NULL,password VARCHAR(128) NOT NULL,enabled INT NOT NULL DEFAULT 1,created VARCHAR(40) NOT NULL)""",
+"""CREATE TABLE IF NOT EXISTS session_identities(token VARCHAR(128) PRIMARY KEY,user_id VARCHAR(64) NOT NULL)""",
+"""CREATE TABLE IF NOT EXISTS document_files(document_id VARCHAR(120),version VARCHAR(64),filename VARCHAR(255) NOT NULL,PRIMARY KEY(document_id,version))"""
 ]
 
 def initialize(db):
