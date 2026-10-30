@@ -7,6 +7,10 @@ case "$1" in *:latest|*[!a-zA-Z0-9._:/@-]*) echo '请使用明确版本标签或
 case "$1" in *:*) ;; *) echo '镜像必须含明确版本标签或摘要'; exit 1;; esac
 export ARCSYNC_IMAGE="$1"
 docker compose --env-file .env.production -f config/production/compose.yml config --quiet
+# 从当前受控数据库读取门禁，不接受可手工编辑的报告文件。
+: "${ARCSYNC_EVALUATION_JOB:?请先完成候选版本的30条评测与独立复核，并指定任务编号}"
+ARCSYNC_CANDIDATE_BUILD=$(docker run --rm --entrypoint python "$ARCSYNC_IMAGE" -c 'from arcsync.core.runtime import BUILD_ID; print(BUILD_ID)')
+docker compose --env-file .env.production -f config/production/compose.yml exec -T app python scripts/check_evaluation_gate.py --job "$ARCSYNC_EVALUATION_JOB" --candidate-build "$ARCSYNC_CANDIDATE_BUILD"
 docker compose --env-file .env.production -f config/production/compose.yml up -d --no-deps app
 attempt=0
 while [ "$attempt" -lt 30 ]; do

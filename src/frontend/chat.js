@@ -5,7 +5,12 @@ window.mountArchiveChat=function(root){
 const $=selector=>root.querySelector(selector);
 let user=null,sessionId=null,controller=null,busy=false,sessions=[],nextOffset=0,beforeTurn=null,listSequence=0;
 const question=$('#question'),messages=$('#messages'),status=$('#generation-status');
+const chatLayout=root.querySelector('.archive-chat');
+function setHistoryVisible(visible){chatLayout.classList.toggle('history-collapsed',!visible);$('#toggle-sessions').setAttribute('aria-expanded',String(visible));}
+setHistoryVisible(false);
+$('#toggle-sessions').addEventListener('click',()=>setHistoryVisible(chatLayout.classList.contains('history-collapsed')));
 
+function setConfigurationNotice(label,message){$('#configuration-notice').hidden=false;$('#configuration-label').textContent=label;$('#configuration-message').textContent=message;}
 function element(tag,className,text){
  const node=document.createElement(tag);if(className)node.className=className;
  if(text!==undefined)node.textContent=text;return node;
@@ -15,14 +20,15 @@ function errorText(error){return /[\u4e00-\u9fff]/.test(error.message||'')?error
 function setStatus(text,loading=false){status.textContent=text;status.classList.toggle('busy',loading);}
 function scrollBottom(){const view=$('#message-scroll');view.scrollTop=view.scrollHeight;}
 function setBusy(value){
- busy=value;$('#send').disabled=value;$('#stop').disabled=!value;question.disabled=value;
+ chatLayout.dataset.generating=String(value);
+ busy=value;$('#send').disabled=value;$('#stop').disabled=!value;$('#stop').hidden=!value;question.disabled=value;
  $('#new-chat').disabled=value;$('#refresh-messages').disabled=value;$('#refresh-sessions').disabled=value;
  root.querySelectorAll('.session-button,[data-question],#more-sessions,#older-messages').forEach(button=>button.disabled=value);
 }
 function authenticationLost(){
  controller?.abort();user=null;sessionId=null;sessions=[];messages.replaceChildren();renderSessions();
  $('#chat-welcome').hidden=false;$('#user-name').textContent='未登录';
- $('#configuration-notice').hidden=false;$('#configuration-notice').textContent='请先通过欢迎页登录，再返回智能查阅。';
+ setConfigurationNotice('登录已失效','请先通过欢迎页登录，再返回智能查阅。');
  $('#back-portal').href='/';$('#back-portal').textContent='前往登录 ↗';setStatus('请先登录或重新登录');
 }
 async function requestJSON(url,options={}){
@@ -190,7 +196,7 @@ window.addEventListener('focus',checkOnFocus);
  try{
   user=await requestJSON('/api/session');$('#user-name').textContent=user.name;$('#back-portal').href=user.home;
   const config=await requestJSON('/api/models/status');
-  if(!config.configured){$('#configuration-notice').hidden=false;$('#configuration-notice').textContent='模型暂未配置，管理员完成接入后即可问答；已有会话仍可查看。';}
+  if(!config.configured){setConfigurationNotice('模型未配置','管理员完成模型接入后即可问答；已有会话仍可查看。');}
   await loadSessions();const requested=new URL(location.href).searchParams.get('session');
   if(requested){try{await openSession(requested);}catch(error){sessionId=null;changeURL();setStatus(errorText(error));}}
   else setStatus('描述你的问题，答案会附上档案来源');

@@ -114,11 +114,8 @@ def workspace(section:str='knowledge',employee:str='',start:str='',end:str='',of
             for item in summary['items']:
                 body+=f'<article class="card"><h3>{e(item["model"])} · {e(item["kind"])}</h3><p>用户：{e(item["user_id"])} · 状态：{e(item["status"])} · 耗时：{e(item.get("duration_ms","处理中"))} ms</p><pre>{e(item.get("reported_usage",{}))}</pre></article>'
     elif section=='evaluation':
-        dataset=evaluations.dataset()
-        body=f'''<section class="card"><h2>云州档案评测题库 · {dataset['total']} 条</h2><p>制度类10条（含3条无答案陷阱题）、工具调用类10条、违规意图类5条、多轮上下文类5条。</p><p>用于人工或后续自动评测，不代表已经执行或通过。评测预期不进入档案检索知识库。</p><a href="/api/admin/evaluations/download">下载 JSON 题库</a></section>'''
-        for index,item in enumerate(dataset['items'],1):
-            sequence=' → '.join(item['expected_tools']) or '无'
-            body+=f'''<article class="card"><h2>{index:02d} · {e(item['category'])}</h2><h3>问题／多轮脚本</h3><pre>{e(item['question'])}</pre><h3>期望工具顺序</h3><pre>{e(sequence)}</pre><h3>预期行为及前置条件</h3><pre>{e(item['expected_behavior'])}</pre></article>'''
+        body='''<section class="card"><h2>云州档案自动评测</h2><p>30 条用例 · 临时业务库隔离 · 工具与引用自动检查 · 回答质量独立人工复核。</p><p>调用真实配置模型会产生费用。测试不读取正式档案，不自动确认、提交或审批草稿。</p><a href="/api/admin/evaluations/download">下载 JSON 题库</a><form id="evaluation-start"><label>模型<select id="evaluation-profile" required></select></label><label>用例范围<select id="evaluation-scope"><option value="all">全部30条（发布门禁需要）</option><option value="policy">制度类10条</option><option value="tools">工具类10条</option><option value="safety">违规意图5条</option><option value="context">多轮上下文5条</option></select></label><button disabled>排队运行评测</button></form><p id="evaluation-config" role="status"></p></section><section class="card"><h2>任务与版本对比</h2><button id="evaluation-refresh">刷新任务</button><div id="evaluation-jobs"></div><form id="evaluation-compare"><label>基线任务<select id="evaluation-left"></select></label><label>候选任务<select id="evaluation-right"></select></label><button>比较版本</button></form><pre id="evaluation-comparison"></pre></section><div id="evaluation-detail" aria-live="polite"></div><section class="card"><h2>结构化题库</h2><p>查看期望工具顺序、预期行为及各轮问题。</p><div id="evaluation-cases"></div></section>'''
+
     else:
         options='<option value="">全部员工</option>'
         names={}

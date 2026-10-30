@@ -11,6 +11,7 @@ from ..core.service import Problem
 from . import enabled
 
 actor=ContextVar('model_actor',default=None)
+observer=ContextVar('evaluation_model_usage',default=None)
 
 
 def redis_client():
@@ -99,6 +100,8 @@ def reserve(endpoint,kind,payload,output=0):
     for key,limit in zip(keys[:4],args[2:6]):
         if int(client.get(key) or 0)>=int(limit)*0.8 and client.set(key+':warned','1',nx=True,ex=172800):
             logging.getLogger('arcsync.budget').warning('模型预算已达80%% budget_key=%s',key)
+    observed=observer.get()
+    if observed is not None:observed.append(entry)
     return keys[-1],entry,time.monotonic()
 
 

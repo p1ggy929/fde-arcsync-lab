@@ -16,3 +16,5 @@
 
 /* All workspace pages use the shared sidebar renderer. */
 .sidebar{overflow-y:auto}.sidebar-bottom{flex-shrink:0}
+/* Shared version updates are deferred while a user is entering data. */
+#ui-update-notice{position:fixed;bottom:22px;right:24px;z-index:200;max-width:calc(100vw - 32px);padding:14px 18px;background:#fffdf5;border:1px solid #e4d7b2;border-radius:8px;box-shadow:0 6px 25px #23382f18;display:flex;align-items:center;gap:14px;color:#7e713f;font-size:12px;line-height:1.8}#ui-update-notice button{border:1px solid var(--green);border-radius:5px;background:var(--green);color:white;font:inherit;padding:7px 10px;white-space:nowrap}

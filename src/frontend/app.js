@@ -95,7 +95,7 @@ function sidebar(){
 
 function shell(content){
  const name=current==='chat'?'智能查阅':navigation.find(n=>n[0]===current)?.[1] || '业务详情';
- $('#app').innerHTML=`<div class="shell">${sidebar()}<div class="workspace"><header class="topbar"><div class="crumb"><span>${portalLabel()}</span>${icon('chevron')}<strong>${name}</strong></div><div class="top-right"><button class="icon-btn" data-action="refresh" aria-label="刷新业务数据" title="刷新业务数据">${icon('refresh')}</button><span class="mode-tag">合成数据演示</span><span class="header-date">${new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(new Date())}</span><button class="profile" data-action="role" title="当前账号与退出登录"><span class="avatar">${h(S.user.name.slice(-2))}</span><span><strong>${h(S.user.name)}</strong><small>${h(S.user.label)}</small></span>${icon('down')}</button></div></header><main class="main">${S.settings.paused==='true'?`<div class="notice red">${icon('pause')}<span>试点已暂停。自动推荐和正常流程推进已停止，可继续查看、保存草稿和处理人工异常。</span></div>`:''}${S.settings.stale?`<div class="notice">${icon('clock')}<span>数据暂未更新。当前为 ${date(S.settings.sync_at,true)} 的只读来源快照，不能作为实时承诺。关键依据请转人工复核。</span></div>`:''}${content}<footer class="footer"><span>© 2026 云州档案服务中心 · ARCSYNC</span><span>合成数据演示 · 原卷须人工确认 · 不改变开放范围与档案处置</span></footer></main></div></div>`;
+ $('#app').innerHTML=`<div class="shell">${sidebar()}<div class="workspace ${current==='chat'?'chat-workspace':''}"><header class="topbar"><div class="crumb"><span>${portalLabel()}</span>${icon('chevron')}<strong>${name}</strong></div><div class="top-right"><button class="icon-btn" data-action="refresh" aria-label="刷新业务数据" title="刷新业务数据">${icon('refresh')}</button><span class="mode-tag">合成数据演示</span><span class="header-date">${new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(new Date())}</span><button class="profile" data-action="role" title="当前账号与退出登录"><span class="avatar">${h(S.user.name.slice(-2))}</span><span><strong>${h(S.user.name)}</strong><small>${h(S.user.label)}</small></span>${icon('down')}</button></div></header><main class="main">${current!=='chat'&&S.settings.paused==='true'?`<div class="notice red">${icon('pause')}<span>试点已暂停。自动推荐和正常流程推进已停止，可继续查看、保存草稿和处理人工异常。</span></div>`:''}${current!=='chat'&&S.settings.stale?`<div class="notice">${icon('clock')}<span>数据暂未更新。当前为 ${date(S.settings.sync_at,true)} 的只读来源快照，不能作为实时承诺。关键依据请转人工复核。</span></div>`:''}${content}<footer class="footer"><span>© 2026 云州档案服务中心 · ARCSYNC</span><span>合成数据演示 · 原卷须人工确认 · 不改变开放范围与档案处置</span></footer></main></div></div>`;
 }
 function heading(title,desc,actions='',eyebrow=''){return `<div class="page-heading"><div>${eyebrow?`<div class="eyebrow">${eyebrow}</div>`:''}<h1>${title}</h1><p>${desc}</p></div>${actions?`<div class="button-row">${actions}</div>`:''}</div>`;}
 function stat(label,num,unit,foot,ico='file',warn=false){return `<div class="stat"><div class="stat-head">${label}<span class="stat-icon">${icon(ico)}</span></div><div class="stat-num">${num}<em>${unit}</em></div><div class="stat-foot ${warn?'warn':''}">${foot}</div></div>`;}
@@ -205,7 +205,7 @@ function settingsView(){
 function render(){
  chatDispose?.();chatDispose=null;chatLoadSequence++;
  if(!S){renderLogin();return;}
- const views={chat:()=>heading('智能查阅','在授权范围内检索档案、核对卷页，并协同办理查阅申请。','','ARCHIVE ASSISTANT')+'<div id="chat-host"><div class="loading">正在打开智能查阅…</div></div>',agent:agentView,models:modelsView,dashboard:isAdmin()?adminDashboard:dashboard,businesses,search,detail,reviews,issues,metrics,feedback,settings:settingsView};
+ const views={chat:chatView,agent:agentView,models:modelsView,dashboard:isAdmin()?adminDashboard:dashboard,businesses,search,detail,reviews,issues,metrics,feedback,settings:settingsView};
  shell((views[current]||dashboard)());
  // Dynamic bar lengths are set as CSS properties, never HTML from user input.
  $$('[data-bar]').forEach(el=>el.style.width=`${Math.max(0,Math.min(100,Number(el.dataset.bar)))}%`);
@@ -215,6 +215,7 @@ function render(){
  if(current==='models')loadAgentStatus();
 }
 function route(){
+ window.ArcSyncUI?.check();
  searchController?.abort();agentController?.abort();
  const [view,id]=(location.hash.slice(1)||'dashboard').split('/');
  if(view==='agent'){location.hash='chat';return;}
@@ -366,7 +367,7 @@ document.addEventListener('submit',async e=>{
  if(form.dataset.form==='agent-chat'){askAgent(form);return;}
  if(busy)return;
  const submit=$('button[type="submit"]',form);if(submit)submit.disabled=true;busy=true;
- try{await submitForm(form);}
+ try{await submitForm(form);window.ArcSyncUI?.saved(form);}
  catch(err){const error=$('#form-error',form)||$('.error-inline',form);if(error)error.textContent=err.message;else toast(err.message,true);if(err.message.includes('已更新')){await refresh();}}
  finally{busy=false;if(submit?.isConnected)submit.disabled=false;}
 });
@@ -455,13 +456,24 @@ async function agentAction(action,el){
  }
 }
 
-(async()=>{try{await refresh();route();}catch{renderLogin();}})();
+(async()=>{try{if(window.ArcSyncUI&&!await window.ArcSyncUI.check())return;await refresh();route();}catch{renderLogin();}})();
 
 async function mountChatPanel(){
  const sequence=chatLoadSequence;
  try{
-  const response=await api('chat/view');
+  if(window.ArcSyncUI&&!await window.ArcSyncUI.check())return;
+  const version=window.ArcSyncUI?.version;
+  if(!version){location.reload();return;}
+  const response=await api('chat/view?ui_version='+encodeURIComponent(version));
+  if(!window.ArcSyncUI.ensure(response.version))return;
   if(sequence!==chatLoadSequence||current!=='chat')return;
   const host=$('#chat-host');host.innerHTML=response.html;chatDispose=window.mountArchiveChat(host);
  }catch(error){if(sequence===chatLoadSequence&&$('#chat-host'))$('#chat-host').textContent=error.message;}
+}
+
+function chatView(){
+ const notices=[];
+ if(S.settings.paused==='true')notices.push('<details class="chat-page-status critical"><summary>试点已暂停</summary><p>自动推荐和正常流程推进已停止，可查看历史记录或处理人工异常。</p></details>');
+ if(S.settings.stale)notices.push('<details class="chat-page-status"><summary>数据快照待更新</summary><p>当前为 '+h(date(S.settings.sync_at,true))+' 的只读来源快照，不能作为实时承诺。关键依据请转人工复核。</p></details>');
+ return '<div class="chat-workspace-heading"><h1>智能查阅</h1><div class="chat-page-statuses">'+notices.join('')+'</div></div><div id="chat-host"><div class="loading">正在打开智能查阅…</div></div>';
 }

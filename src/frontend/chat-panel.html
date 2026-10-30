@@ -1,5 +1,5 @@
 <div class="archive-chat chat-app">
-  <aside class="conversations" aria-label="会话列表">
+  <aside id="chat-sessions" class="conversations" aria-label="会话列表">
     <button class="new-chat" id="new-chat" type="button"><span aria-hidden="true">＋</span> 开始新会话</button>
     <div class="list-title">最近会话 <button id="refresh-sessions" type="button" aria-label="刷新会话列表">↻</button></div>
     <nav id="session-list" class="session-list" aria-label="选择会话"></nav>
@@ -7,13 +7,12 @@
     <div class="aside-foot"><span class="status-dot"></span> 以授权档案为依据<p>会话按独立账号保存<br>历史问答仅用于理解上下文</p></div>
   </aside>
   <section class="chat-main">
-    <header class="chat-header"><strong>档案对话</strong><div class="header-actions"><span id="user-name" hidden></span><button id="refresh-messages" type="button" class="subtle">刷新消息</button><a href="/access-drafts">申请草稿</a><a href="/" id="back-portal" hidden>返回工作台</a></div></header>
-    <div id="configuration-notice" class="configuration-notice" role="status" hidden></div>
+    <header class="chat-header"><div class="chat-toolbar-title"><button type="button" id="toggle-sessions" class="subtle" aria-controls="chat-sessions" aria-expanded="true">对话记录</button><strong>档案对话</strong></div><div class="header-actions"><details id="configuration-notice" class="configuration-notice" role="status" hidden><summary id="configuration-label">问答服务提示</summary><p id="configuration-message"></p></details><span id="user-name" hidden></span><button id="refresh-messages" type="button" class="subtle">刷新消息</button><a href="/access-drafts">申请草稿</a><a href="/" id="back-portal" hidden>返回工作台</a></div></header>
     <section class="message-scroll" id="message-scroll" aria-label="聊天记录">
       <div class="welcome" id="chat-welcome"><div class="welcome-icon" aria-hidden="true">问</div><div class="eyebrow">从一个问题，找到一条依据</div><h2>想查阅哪一份档案？</h2><p>描述查阅目的，我们一起检索档案、核对版本与卷页。<br>回答会附上文件名称与引用片段，方便逐条核对。</p><div class="suggestions"><button type="button" data-question="查找云州县城总体规划批复及后续更正">查找云州县城总体规划批复及后续更正 <span>↗</span></button><button type="button" data-question="查阅申请需要哪些材料，如何提交？">查阅申请需要哪些材料，如何提交？ <span>↗</span></button></div><div class="welcome-note">目录摘要不等于原卷；页文本缺失时会说明并转人工核对。</div></div>
       <button id="older-messages" type="button" class="older subtle" hidden>加载更早消息</button>
       <div id="messages" class="messages"></div>
     </section>
-    <div class="composer-area"><div class="generation-status" id="generation-status" role="status" aria-live="polite">登录后即可开始档案查阅</div><form id="chat-form" class="composer"><label for="question" class="visually-hidden">输入档案查阅需求</label><textarea id="question" name="question" rows="2" maxlength="2000" placeholder="输入你的档案查阅需求，也可以继续追问上一轮内容…" required></textarea><p class="draft-consent">创建前先展示具体草稿，由你确认后保存；不会自动提交。</p><div class="composer-bottom"><span id="question-count">0 / 2000</span><div><span class="key-hint">Enter 发送 · Shift+Enter 换行</span><button type="button" id="stop" class="stop" disabled>停止生成</button><button type="submit" id="send" class="send">发送 ↑</button></div></div></form><p class="disclaimer">回答供查阅参考，请核对档案版本、页码与原文；生成中的内容为草稿。</p></div>
+    <div class="composer-area"><div class="generation-status" id="generation-status" role="status" aria-live="polite">登录后即可开始档案查阅</div><form id="chat-form" class="composer"><label for="question" class="visually-hidden">输入档案查阅需求</label><textarea id="question" name="question" rows="2" maxlength="2000" placeholder="输入你的档案查阅需求，也可以继续追问上一轮内容…" required></textarea><div class="composer-bottom"><span id="question-count">0 / 2000</span><div><span class="key-hint">Enter 发送 · Shift+Enter 换行</span><button type="button" id="stop" class="stop" disabled hidden>停止生成</button><button type="submit" id="send" class="send">发送 ↑</button></div></div></form><p class="disclaimer">草稿创建前需你确认；档案版本、页码及原文仍须人工核对。</p></div>
   </section>
 </div>

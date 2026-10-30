@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, HTMLResponse, Response
 from .api.routes import router
 from .api.agent_routes import router as agent_router
 from .chat.routes import router as chat_router
@@ -14,6 +14,7 @@ from .core.store import ROOT, init_db
 from .core.service import Problem
 
 FRONTEND=ROOT/'src'/'frontend'
+from .core.frontend import frontend_version, version_document
 
 @asynccontextmanager
 async def lifespan(app):
@@ -23,7 +24,13 @@ async def lifespan(app):
     check_accounts()
     from .agents.repository import recover_interrupted
     recover_interrupted()
-    yield
+    import asyncio
+    from .evaluation.runner import serve
+    evaluation_task=asyncio.create_task(serve())
+    try:yield
+    finally:
+        evaluation_task.cancel()
+        await asyncio.gather(evaluation_task,return_exceptions=True)
 
 app=FastAPI(title='ArcSync 服务层',version='0.3.0',lifespan=lifespan,
             description='员工门户与管理后台共享 HTTP 服务，账号决定端及岗位权限。',
@@ -36,6 +43,8 @@ app.include_router(agent_router)
 app.include_router(chat_router)
 from .admin.routes import router as admin_router
 app.include_router(admin_router)
+from .evaluation.routes import router as evaluation_router
+app.include_router(evaluation_router)
 from .agents.access_routes import router as access_router
 app.include_router(access_router)
 
@@ -73,6 +82,10 @@ def api_documentation():
     from fastapi.responses import HTMLResponse
     return HTMLResponse('<!doctype html><meta charset="utf-8"><title>ArcSync API</title><h1>ArcSync HTTP API</h1><p>接口与鉴权说明见项目 docs/api.md。</p><p><a href="/api/openapi.json">查看 OpenAPI 接口定义</a> · <a href="/">返回欢迎页</a></p>')
 
+@app.get('/api/frontend/version',include_in_schema=False)
+def frontend_generation():
+    return {'version':frontend_version()}
+
 @app.get('/{page:path}',include_in_schema=False)
 def frontend(page: str,request: Request):
     if page in ('portal','admin'):
@@ -83,12 +96,15 @@ def frontend(page: str,request: Request):
         if page != user['home'].lstrip('/'):
             return RedirectResponse(user['home'],status_code=303)
     files={'admin/manage.css':'manage.css','admin/manage.js':'manage.js','':'index.html','index.html':'index.html','portal':'index.html','admin':'index.html',
-           'chat.js':'chat.js','chat.css':'chat.css','app.js':'app.js','style.css':'style.css','favicon.svg':'favicon.svg'}
+           'frontend-sync.js':'frontend-sync.js','chat.js':'chat.js','chat.css':'chat.css','app.js':'app.js','style.css':'style.css','favicon.svg':'favicon.svg'}
     if page not in files:
         raise Problem('页面或接口不存在',404)
+    if request and page.endswith(('.js','.css')) and page!='frontend-sync.js' and request.query_params.get('v') and request.query_params['v']!=frontend_version():
+        return Response('界面资源已更新，请重新加载工作台。',status_code=409,media_type='text/plain')
+    if files[page]=='index.html':
+        return HTMLResponse(version_document((FRONTEND/'index.html').read_text()))
     from .production import enabled as production
     if production() and page=='app.js':
-        from fastapi.responses import Response
         import re
         source=(FRONTEND/'app.js').read_text()
         source=re.sub(r'<div class="account-examples">.*?</div></div>', '',source)

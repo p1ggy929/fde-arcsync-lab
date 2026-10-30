@@ -1,0 +1,14 @@
+[
+  {
+    "id": "ollama-local",
+    "label": "本机Ollama（模型名称由运维替换）",
+    "llm": {"provider": "ollama", "base_url": "http://127.0.0.1:11434", "model": "REPLACE_WITH_INSTALLED_MODEL"},
+    "embedding": {"provider": "ollama", "base_url": "http://127.0.0.1:11434", "model": "REPLACE_WITH_EMBEDDING_MODEL"}
+  },
+  {
+    "id": "cloud-approved",
+    "label": "批准的云端模型（地址与模型名称由运维替换）",
+    "llm": {"provider": "cloud", "base_url": "https://REPLACE.example/v1", "model": "REPLACE", "api_key_env": "ARCSYNC_EVAL_CLOUD_KEY"},
+    "embedding": {"provider": "cloud", "base_url": "https://REPLACE.example/v1", "model": "REPLACE_EMBEDDING", "api_key_env": "ARCSYNC_EVAL_CLOUD_KEY"}
+  }
+]

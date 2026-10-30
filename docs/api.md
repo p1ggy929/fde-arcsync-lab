@@ -106,3 +106,8 @@ document 可出现零次或多次。握手前鉴权失败返回 HTTP 401；握�
 ## 多轮聊天
 
 新增 `POST /chat`、`GET /chat/sessions`、`GET /chat/sessions/{id}/messages`。统一code/message/data中文错误，SSE提供session/status/delta/citations/done及终止error事件。接口细节、SQLite表、用户唯一ID及上下文规则见 [聊天接口](chat-api.md)。
+
+
+## 自动评测与发布门禁
+
+管理员评测任务接口前缀为 `/api/admin/evaluation`，支持模型选项、任务排队、停止、独立复核、报告和版本对比。完整接口与鉴权、隔离和评分口径见 [评测平台说明](evaluation-platform.md)。原始30题下载接口保留。

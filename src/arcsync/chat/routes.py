@@ -182,8 +182,11 @@ async def chat(request:Request,data:dict=Depends(json_body),user=Depends(current
 
 
 @router.get('/api/chat/view')
-def chat_view(user=Depends(current_user)):
-    return {'html':(ROOT/'src'/'frontend'/'chat-panel.html').read_text()}
+def chat_view(ui_version:str='',user=Depends(current_user)):
+    from ..core.frontend import frontend_version
+    version=frontend_version()
+    if ui_version!=version:raise Problem('界面已更新，请重新加载当前工作台以使用统一版式',409)
+    return {'html':(ROOT/'src'/'frontend'/'chat-panel.html').read_text(),'version':version}
 
 
 @router.get('/chat-ui',include_in_schema=False)
