@@ -60,9 +60,9 @@ async def chat(request:Request,data:dict=Depends(json_body),user=Depends(current
     def active():
         with connect() as db:check_active(db)
     await run_in_threadpool(active)
-    if user['role'] in _active or len(_active)>=4:
+    if user['user_id'] in _active or len(_active)>=4:
         raise Problem('智能查阅繁忙，请等待当前任务结束后重试',429)
-    _active.add(user['role'])
+    _active.add(user['user_id'])
     async def guard():
         if await request.is_disconnected():raise asyncio.CancelledError()
         latest=await run_in_threadpool(current_user,request)
@@ -75,5 +75,15 @@ async def chat(request:Request,data:dict=Depends(json_body),user=Depends(current
                     yield f'event: {event["event"]}\ndata: {json.dumps(event["data"],ensure_ascii=False)}\n\n'
         except Exception:
             yield 'event: error\ndata: '+json.dumps({'error':'智能查阅服务暂不可用，请重试','discard_draft':True},ensure_ascii=False)+'\n\n'
-        finally:_active.discard(user['role'])
+        finally:_active.discard(user['user_id'])
     return StreamingResponse(events(),media_type='text/event-stream',headers={'X-Accel-Buffering':'no','Cache-Control':'no-store'})
+
+
+@router.get('/admin/usage')
+def usage(user=Depends(current_user)):
+    require(user,('director','protector','engineer'))
+    from ..production import enabled
+    if not enabled():return {'code':0,'message':'开发模式未启用付费配额','data':{'enabled':False,'items':[]}}
+    from ..production.controls import usage_summary
+    try:return {'code':0,'message':'读取用量成功','data':usage_summary()}
+    except Exception:raise Problem('用量服务暂不可用',503) from None

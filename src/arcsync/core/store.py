@@ -78,7 +78,8 @@ def init_db(path=None):
             CREATE TABLE IF NOT EXISTS agent_runs(id TEXT PRIMARY KEY,role TEXT,question TEXT,status TEXT,answer TEXT,sources TEXT,created TEXT,updated TEXT,usage TEXT,error TEXT);
             CREATE TABLE IF NOT EXISTS agent_steps(id INTEGER PRIMARY KEY,run_id TEXT,at TEXT,kind TEXT,detail TEXT);
             ''')
-        for role, (name, _) in ROLES.items():
+        from ..production import enabled as production
+        for role, (name, _) in ([] if production() else ROLES.items()):
             salt = secrets.token_hex(16)
             password = hashlib.pbkdf2_hmac('sha256', os.environ.get('ARCSYNC_DEMO_PASSWORD', 'ArcSync2026!').encode(), salt.encode(), 120000).hex()
             db.execute('INSERT OR IGNORE INTO users VALUES(?,?,?,?)', (role,name,salt,password))
@@ -92,6 +93,10 @@ def init_db(path=None):
         initialize_harness(db)
         from .accounts import migrate_accounts
         migrate_accounts(db)
+        if production():
+            for key,value in {'paused':'false','sync_at':now(),'sync_state':'healthy','rule_version':'production-v1','evaluation_retention_days':'90'}.items():
+                db.execute('INSERT OR IGNORE INTO settings VALUES(?,?)',(key,value))
+            return
         if db.execute('SELECT COUNT(*) FROM documents').fetchone()[0]:
             return
         t = now()

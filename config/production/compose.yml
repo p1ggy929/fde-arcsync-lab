@@ -1,0 +1,48 @@
+services:
+  gateway:
+    image: caddy:2.10
+    environment:
+      ARCSYNC_DOMAIN: ${ARCSYNC_DOMAIN:?请配置域名}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    networks:
+      backend:
+        ipv4_address: 172.30.0.2
+    restart: unless-stopped
+  app:
+    image: ${ARCSYNC_IMAGE:?请指定带版本标签的镜像}
+    env_file: ../../.env.production
+    volumes: ["app_data:/state"]
+    networks: [backend]
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.Request('http://127.0.0.1:8765/api/ready',headers={'Host':__import__('os').environ['ARCSYNC_ALLOWED_HOSTS'].split(',')[0],'X-Forwarded-Proto':'https'}); urllib.request.urlopen(r,timeout=5)"]
+      interval: 20s
+      timeout: 8s
+      retries: 3
+  redis:
+    image: redis:7.4
+    environment:
+      REDIS_PASSWORD: ${ARCSYNC_REDIS_PASSWORD:?请配置Redis密码}
+    command: ["sh", "-c", 'exec redis-server --appendonly yes --appendfsync always --maxmemory 256mb --maxmemory-policy noeviction --requirepass "$$REDIS_PASSWORD"']
+    volumes: ["redis_data:/data"]
+    networks: [backend]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+networks:
+  backend:
+    ipam:
+      config: [{subnet: 172.30.0.0/24}]
+volumes:
+  app_data:
+  redis_data:
+  caddy_data:

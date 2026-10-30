@@ -1,4 +1,5 @@
 """具名账号与旧岗位账号的兼容映射，不改变现有业务表。"""
+import os
 import hashlib
 import secrets
 import uuid
@@ -36,6 +37,9 @@ def create_account(username,name,role,password):
     if role not in ROLES:raise Problem('岗位不存在')
     if not isinstance(name,str) or not 1<=len(name.strip())<=60:raise Problem('姓名须为1～60字')
     if not isinstance(password,str) or not 12<=len(password)<=200:raise Problem('独立账号密码须为12～200位')
+    from ..production import enabled
+    if enabled() and (username in ROLES or password in {'ArcSync2026!',os.getenv('ARCSYNC_DEMO_PASSWORD','ArcSync2026!')}):
+        raise Problem('生产环境禁止演示用户名或演示口令')
     identifier=uuid.uuid4().hex;salt=secrets.token_hex(16)
     hashed=hashlib.pbkdf2_hmac('sha256',password.encode(),salt.encode(),120000).hex()
     with connect() as db:

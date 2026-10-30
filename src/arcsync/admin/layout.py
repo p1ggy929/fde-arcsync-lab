@@ -12,10 +12,12 @@ def render_sidebar(user,active=''):
     e=lambda value:escape(str(value or ''),quote=True)
     home=user['home'];admin=user.get('portal')=='admin'
     with connect() as db:
+        from ..core.service import state
+        visible=state(db,user)
         counts={
-            'dashboard':db.execute("SELECT COUNT(*) FROM businesses WHERE owner=? AND status!='已交付'",(user['role'],)).fetchone()[0],
-            'issues':db.execute("SELECT COUNT(*) FROM issues WHERE status!='已处理'").fetchone()[0],
-            'reviews':db.execute("SELECT COUNT(*) FROM handoffs WHERE receiver=? AND status='待接手'",(user['role'],)).fetchone()[0],
+            'dashboard':sum(b['owner']==user['role'] and b['status']!='已交付' for b in visible['businesses']),
+            'issues':sum(i['status']!='已处理' for i in visible['issues']),
+            'reviews':sum(h['receiver']==user['role'] and h['status']=='待接手' for h in visible['handoffs']),
         }
     nav=[('/access-drafts','查阅申请草稿','file','drafts')]
     if admin:nav.append(('/admin/manage','制度与问答管理','settings','manage'))

@@ -102,24 +102,32 @@ def main():
         raise RuntimeError('端口必须在 1–65535 之间。')
     url = f'http://127.0.0.1:{args.port}'
     browser = not args.no_browser and os.environ.get('ARCSYNC_OPEN_BROWSER', '1') != '0'
+    prior_environment=None
+    python=None
     if not args.check and port_in_use(args.port):
         if health(url):
             with build_opener(ProxyHandler({})).open(url+'/api/health',timeout=2) as response:
                 running=json.loads(response.read(8192))
             expected=runpy.run_path(str(ROOT/'src'/'arcsync'/'core'/'runtime.py'))['BUILD_ID']
             if running.get('build_id')!=expected:
-                raise RuntimeError('检测到平台代码已更新，但端口上仍运行旧服务。请在原启动窗口按 Ctrl+C 停止后重新启动；已保存数据会保留。')
-            say('检测到当前版本的 ArcSync 已启动，直接打开现有平台。')
-            if os.environ.get('ARCSYNC_DB'):
-                say('已有服务沿用其启动时的数据配置；本次 ARCSYNC_DB 不会改变该服务。')
-            open_page(url, browser)
-            return 0
-        raise RuntimeError(f'端口 {args.port} 被其他程序占用。请用 PORT=8877 sh scripts/start.sh 更换端口。')
-    python = prepare_environment()
+                from runtime_process import inspect_server, stop_verified_server
+                pid,prior_environment=inspect_server(args.port,ROOT)
+                python=prepare_environment()
+                say('检测到本项目旧服务，正在保留原配置并平滑更新；已保存数据不会删除…')
+                stop_verified_server(pid)
+            else:
+                say('检测到当前版本的 ArcSync 已启动，直接打开现有平台。')
+                if os.environ.get('ARCSYNC_DB'):
+                    say('已有服务沿用其启动时的数据配置；本次 ARCSYNC_DB 不会改变该服务。')
+                open_page(url, browser)
+                return 0
+        else:
+            raise RuntimeError(f'端口 {args.port} 被其他程序占用。请用 PORT=8877 sh scripts/start.sh 更换端口。')
+    python = python or prepare_environment()
     if args.check:
         say('环境检查通过，项目已具备启动条件。')
         return 0
-    env = os.environ.copy()
+    env = prior_environment if prior_environment is not None else os.environ.copy()
     env['PYTHONPATH'] = str(ROOT / 'src') + (os.pathsep + env['PYTHONPATH'] if env.get('PYTHONPATH') else '')
     say('正在启动云州档案平台…')
     process = subprocess.Popen([str(python), '-m', 'arcsync.main', '--port', str(args.port)],
@@ -157,5 +165,5 @@ if __name__ == '__main__':
         sys.exit(0)
     except (RuntimeError, OSError, subprocess.CalledProcessError) as error:
         say(f'启动失败：{error}')
-        say('请排查 Python 版本、网络连接及上方安装提示，然后重新双击“启动项目.command”。')
+        say('请按上方具体原因处理后重新双击“启动项目.command”；现有数据库和已保存记录不会删除。')
         sys.exit(1)

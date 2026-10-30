@@ -1,0 +1,3 @@
+-r requirements.txt
+# 仅用于原子Lua契约测试，不代表真实Redis部署验证。
+fakeredis[lua]==2.31.1

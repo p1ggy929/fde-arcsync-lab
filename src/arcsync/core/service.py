@@ -2,6 +2,7 @@
 import json
 from datetime import datetime, timezone
 from .store import ROLES, audit, event, now
+from ..production import enabled as production
 
 class Problem(Exception):
     def __init__(self, message, status=400):
@@ -80,18 +81,20 @@ def visible_audit(db,user):
 def state(db,user):
     docs=[dict(r) for r in db.execute('SELECT * FROM documents ORDER BY id') if can_read(user,r)]
     accessible={d['id'] for d in docs}
-    bs=[business(db,r['id']) for r in db.execute('SELECT id FROM businesses ORDER BY created DESC,id')]
-    issues=[dict(r) for r in db.execute('SELECT * FROM issues ORDER BY id DESC') if not r['document_id'] or r['document_id'] in accessible]
+    from ..agents.access import business_visible
+    bs=[business(db,r['id']) for r in db.execute('SELECT * FROM businesses ORDER BY created DESC,id') if business_visible(db,user,r)]
+    visible={b['id'] for b in bs}
+    issues=[dict(r) for r in db.execute('SELECT * FROM issues ORDER BY id DESC') if (not r['document_id'] or r['document_id'] in accessible) and r['business_id'] in visible]
     s=settings(db)
     age=(datetime.now(timezone.utc)-datetime.fromisoformat(s['sync_at'])).total_seconds()
     s['stale']=age>3600 or s['sync_state']!='healthy'
     return {'user':user,'roles':[{'id':k,'name':v[0],'label':v[1]} for k,v in ROLES.items()],
       'documents':docs,'businesses':bs,'issues':issues,'settings':s,
-      'handoffs':[dict(r) for r in db.execute('SELECT * FROM handoffs ORDER BY id DESC')],
-      'feedback':[dict(r) for r in db.execute('SELECT * FROM feedback ORDER BY id DESC')],
+      'handoffs':[dict(r) for r in db.execute('SELECT * FROM handoffs ORDER BY id DESC') if r['business_id'] in visible],
+      'feedback':[dict(r) for r in db.execute('SELECT * FROM feedback ORDER BY id DESC') if r['business_id'] in visible],
       'audit':visible_audit(db,user),
-      'events':[dict(r) for r in db.execute('SELECT * FROM events ORDER BY id DESC LIMIT 500')],
-      'demo':True,'clock':now()}
+      'events':[dict(r) for r in db.execute('SELECT * FROM events ORDER BY id DESC LIMIT 500') if r['business_id'] in visible],
+      'demo':not production(),'clock':now()}
 
 def check_imported_page(db,doc,page):
     imported=db.execute('SELECT 1 FROM document_chunks WHERE document_id=? AND version=?',(doc['id'],doc['version'])).fetchone()
@@ -108,6 +111,15 @@ def check_citation_current(db,user,citation):
 
 
 def mutate(db,user,action,data):
+    from ..agents.access import business_visible
+    bid=data.get('business_id')
+    table={'reply':'feedback','resolve':'issues','accept':'handoffs'}.get(action)
+    if table:
+        record=row(db,table,data.get('id'))
+        bid=record['business_id']
+    if bid:
+        target=row(db,'businesses',bid)
+        if not business_visible(db,user,target):raise Problem('业务不存在或不在授权范围内',404)
     role=user['role']
     if action=='create':
         require(user,('organizer','reviewer','representative'))

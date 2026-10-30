@@ -42,7 +42,8 @@ async def json_body(request: Request):
 
 @router.get('/health')
 def health():
-    return {'status':'ok','framework':'FastAPI','mode':'synthetic-local','upstream_connected':False,'build_id':BUILD_ID}
+    from ..production import enabled
+    return {'status':'ok','framework':'FastAPI','mode':'production' if enabled() else 'synthetic-local','upstream_connected':False,'build_id':BUILD_ID}
 
 @router.post('/login',openapi_extra=LOGIN_REQUEST)
 def sign_in(request: Request, data: dict = Depends(json_body)):
@@ -130,3 +131,18 @@ async def search_stream(request: Request, filters: dict=Depends(search_filters),
             await asyncio.sleep(0)
         yield frame('done',{'count':len(result['documents'])})
     return StreamingResponse(chunks(),media_type='text/event-stream',headers={'X-Accel-Buffering':'no','Cache-Control':'no-store'})
+
+
+@router.get('/ready')
+def ready():
+    # 就绪检查只探测依赖，不触发任何付费模型请求。
+    from ..production import enabled
+    try:
+        with connect() as db:db.execute('SELECT 1').fetchone()
+        from ..chat.repository import chat_connect
+        with chat_connect() as db:db.execute('SELECT 1').fetchone()
+        if enabled():
+            from ..production.controls import redis_client
+            redis_client().ping()
+    except Exception:raise Problem('服务尚未就绪',503) from None
+    return {'code':0,'message':'服务已就绪','data':{'ready':True}}

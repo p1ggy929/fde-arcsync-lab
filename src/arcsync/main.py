@@ -17,7 +17,10 @@ FRONTEND=ROOT/'src'/'frontend'
 
 @asynccontextmanager
 async def lifespan(app):
+    from .production.startup import preflight, check_accounts
+    preflight()
     init_db()
+    check_accounts()
     from .agents.repository import recover_interrupted
     recover_interrupted()
     yield
@@ -26,6 +29,8 @@ app=FastAPI(title='ArcSync 服务层',version='0.3.0',lifespan=lifespan,
             description='员工门户与管理后台共享 HTTP 服务，账号决定端及岗位权限。',
             docs_url=None,redoc_url=None,openapi_url='/api/openapi.json',
             swagger_ui_parameters={'persistAuthorization':False})
+from .production.middleware import ProductionMiddleware
+app.add_middleware(ProductionMiddleware)
 app.include_router(router)
 app.include_router(agent_router)
 app.include_router(chat_router)
@@ -81,6 +86,14 @@ def frontend(page: str,request: Request):
            'chat.js':'chat.js','chat.css':'chat.css','app.js':'app.js','style.css':'style.css','favicon.svg':'favicon.svg'}
     if page not in files:
         raise Problem('页面或接口不存在',404)
+    from .production import enabled as production
+    if production() and page=='app.js':
+        from fastapi.responses import Response
+        import re
+        source=(FRONTEND/'app.js').read_text()
+        source=re.sub(r'<div class="account-examples">.*?</div></div>', '',source)
+        source=source.replace("form.elements.password.value='ArcSync2026!'", "form.elements.password.value=''")
+        return Response(source,media_type='text/javascript')
     return FileResponse(FRONTEND/files[page])
 
 def main():

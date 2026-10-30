@@ -90,9 +90,9 @@ def flag(identifier:str,data:dict=Depends(json_body),user=Depends(admin_user)):
 
 @router.get('/admin/manage',response_class=HTMLResponse)
 def workspace(section:str='knowledge',employee:str='',start:str='',end:str='',offset:int=Query(0,ge=0),user=Depends(admin_user)):
-    if section not in ('knowledge','prompt','audit','evaluation'):raise Problem('页面不存在',404)
+    if section not in ('knowledge','prompt','audit','evaluation','usage'):raise Problem('页面不存在',404)
     e=lambda value:escape(str(value or ''),quote=True)
-    title={'knowledge':'制度知识库','prompt':'系统提示词','audit':'对话审计','evaluation':'项目评测'}[section]
+    title={'knowledge':'制度知识库','prompt':'系统提示词','audit':'对话审计','evaluation':'项目评测','usage':'模型用量'}[section]
     body=''
     if section=='knowledge':
         body='''<section class="card"><h2>上传制度</h2><p>Markdown / PDF · 最大10MB · PDF须含可提取文本 · 自动切片并向量化</p><form id="upload"><input type="file" id="file" accept=".md,.pdf" required><button>上传并入库</button></form></section><section class="card"><h2>已发布制度</h2><table><thead><tr><th>文件</th><th>切片</th><th>更新时间</th><th>操作</th></tr></thead><tbody>'''
@@ -101,6 +101,18 @@ def workspace(section:str='knowledge',employee:str='',start:str='',end:str='',of
     elif section=='prompt':
         template=repository.prompt()
         body=f'''<section class="card"><h2>问答系统提示词 <span>版本 {template['revision']}</span></h2><p>保存到数据库后，下一个问答请求立即使用新版本。正在生成的回答保持当前模板。</p><form id="prompt" data-revision="{template['revision']}"><textarea id="content" maxlength="16000" required>{e(template['content'])}</textarea><button>保存并生效</button></form><p>最近修改：{e(template['updated_at'])}</p></section>'''
+    elif section=='usage':
+        from ..core.service import require
+        require(user,('director','protector','engineer'))
+        from ..production import enabled
+        if not enabled():body='<section class="card"><h2>开发模式</h2><p>生产模式启用共享配额与用量台账；开发模式不计入生产预算。</p></section>'
+        else:
+            from ..production.controls import usage_summary
+            try:summary=usage_summary()
+            except Exception:raise Problem('用量服务暂不可用',503) from None
+            body=f'<section class="card"><h2>今日模型预算占用（UTC）</h2><p>预留Token：{summary["reserved_tokens"]} · 预留美元：{summary["reserved_micro_usd"]/1000000:.6f}</p><p>{e(summary["notice"])}</p></section>'
+            for item in summary['items']:
+                body+=f'<article class="card"><h3>{e(item["model"])} · {e(item["kind"])}</h3><p>用户：{e(item["user_id"])} · 状态：{e(item["status"])} · 耗时：{e(item.get("duration_ms","处理中"))} ms</p><pre>{e(item.get("reported_usage",{}))}</pre></article>'
     elif section=='evaluation':
         dataset=evaluations.dataset()
         body=f'''<section class="card"><h2>云州档案评测题库 · {dataset['total']} 条</h2><p>制度类10条（含3条无答案陷阱题）、工具调用类10条、违规意图类5条、多轮上下文类5条。</p><p>用于人工或后续自动评测，不代表已经执行或通过。评测预期不进入档案检索知识库。</p><a href="/api/admin/evaluations/download">下载 JSON 题库</a></section>'''
@@ -131,5 +143,5 @@ def workspace(section:str='knowledge',employee:str='',start:str='',end:str='',of
         if len(rows)>50:
             from urllib.parse import urlencode
             body+='<a href="?'+e(urlencode({'section':'audit','employee':employee,'start':start,'end':end,'offset':offset+50}))+'">下一页 →</a>'
-    tabs='<nav class="management-tabs" aria-label="管理功能">'+''.join(f'<a class="{"active" if section==key else ""}" href="/admin/manage?section={key}"'+(' aria-current="page"' if section==key else '')+f'>{name}</a>' for key,name in [('knowledge','制度知识库'),('prompt','提示词模板'),('audit','对话审计'),('evaluation','项目评测')])+'</nav>'
+    tabs='<nav class="management-tabs" aria-label="管理功能">'+''.join(f'<a class="{"active" if section==key else ""}" href="/admin/manage?section={key}"'+(' aria-current="page"' if section==key else '')+f'>{name}</a>' for key,name in [('knowledge','制度知识库'),('prompt','提示词模板'),('audit','对话审计'),('evaluation','项目评测'),('usage','模型用量')])+'</nav>'
     return workspace_page(user,title,body,'manage','统一维护查阅依据、问答规则与服务记录，让每一次辅助都有据可查。','KNOWLEDGE & GOVERNANCE',tabs)

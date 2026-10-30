@@ -1,5 +1,6 @@
 """MySQL 8 adapter for the existing parameterized business repository."""
 import re
+import os
 from urllib.parse import urlsplit, unquote
 import pymysql
 
@@ -25,7 +26,12 @@ class MySQLConnection:
         parsed=urlsplit(url)
         if parsed.scheme not in ('mysql','mysql+pymysql') or not parsed.hostname or not parsed.path.strip('/') or parsed.query:
             raise ValueError('ARCSYNC_DATABASE_URL 必须为 mysql://用户:密码@主机:端口/数据库；不支持查询参数')
-        self.raw=pymysql.connect(host=parsed.hostname,port=parsed.port or 3306,user=unquote(parsed.username or ''),
+        tls={}
+        from ..production import enabled as production
+        if production():
+            if not os.getenv('ARCSYNC_MYSQL_CA'):raise RuntimeError('生产MySQL必须配置CA证书')
+            tls={'ssl_ca':os.environ['ARCSYNC_MYSQL_CA'],'ssl_verify_cert':True,'ssl_verify_identity':True}
+        self.raw=pymysql.connect(**tls,host=parsed.hostname,port=parsed.port or 3306,user=unquote(parsed.username or ''),
                                  password=unquote(parsed.password or ''),database=unquote(parsed.path.lstrip('/')),
                                  charset='utf8mb4',cursorclass=pymysql.cursors.DictCursor,autocommit=False,
                                  connect_timeout=5,read_timeout=30,write_timeout=30)

@@ -3,6 +3,7 @@ import json
 import math
 import httpx
 from .config import Endpoint, ModelError
+from ..production.controls import governed, governed_stream
 
 class ModelClient:
     def __init__(self, endpoint: Endpoint, transport=None):
@@ -29,6 +30,7 @@ class ModelClient:
             payload['tools']=tools
         return payload
 
+    @governed
     async def chat(self,messages,tools=None,json_mode=False):
         try:
             async with self.client() as client:
@@ -67,6 +69,7 @@ class ModelClient:
             normalized.append(msg)
         return normalized
 
+    @governed_stream
     async def stream(self,messages,max_tokens=1600):
         try:
             async with self.client() as client:
@@ -102,6 +105,7 @@ class ModelClient:
         except (httpx.HTTPError,ValueError,KeyError,TypeError):
             raise ModelError('模型流式连接失败，请检查模型服务后重试。') from None
 
+    @governed
     async def embed(self,texts):
         if not texts:return []
         try:

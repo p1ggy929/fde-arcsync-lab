@@ -193,7 +193,10 @@ def submit(user,identifier):
 
 def business_visible(db,user,row):
     if user['role'] not in ('organizer','representative'):return True
-    if row['sample'] and row['owner']==user['role']:return True
+    from ..production import enabled as production
+    if not production() and not user.get('user_id'):return True
+    if user['role']=='organizer' and (row['owner']=='organizer' or db.execute("SELECT 1 FROM handoffs WHERE business_id=? AND receiver='organizer' AND status='待接手'",(row['id'],)).fetchone()):return True
+    if not production() and row['sample'] and row['owner']==user['role']:return True
     return bool(db.execute('SELECT 1 FROM business_requesters WHERE business_id=? AND user_id=?',(row['id'],owner(user))).fetchone())
 
 

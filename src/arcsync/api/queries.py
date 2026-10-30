@@ -33,6 +33,8 @@ def document_page(db,user,identifier,qs):
         audit(db,user,'查看导入页文本',detail={'document_id':identifier,'version':d['version'],'scan_page':page})
         return {'document':d,'scan_page':page,'paper_page':imported['paper_page'],
                 'paragraphs':imported['content'].split('\n'),'synthetic':False,'source':'人工提供文本；未核验原始扫描件'}
+    from ..production import enabled
+    if enabled():raise Problem('该页正文尚未导入，不能生成卷页内容',404)
     if d['status']=='待修复':
         content=['该页日期与页码存在识别歧义。','原记录保持不变，须由人工修复后重新核验。','此资料已从自动推荐样本中排除。']
     else:
