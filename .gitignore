@@ -14,3 +14,7 @@ node_modules/
 coverage/
 dist/
 .pytest_cache/
+
+# Generated model retrieval artifacts and optional local configuration.
+data/vectors/
+config/runtime.local.toml

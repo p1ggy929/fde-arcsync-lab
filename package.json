@@ -1,6 +1,6 @@
 {
   "name": "arcsync-lab",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "云州档案检索与查阅协同平台 · 本地合成数据演示",
   "scripts": {

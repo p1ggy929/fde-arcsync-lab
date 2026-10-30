@@ -1,15 +1,12 @@
-"""Real HTTP authentication, cookie sessions, scoped search and request protection."""
+"""ASGI HTTP authentication, cookie sessions, scoped search and request protection."""
 import json
+import urllib.parse
 import os
 import tempfile
-import threading
 import unittest
-import urllib.request
-import urllib.error
-from http.cookiejar import CookieJar
-from http.server import ThreadingHTTPServer
+from fastapi.testclient import TestClient
 from pathlib import Path
-from arcsync.main import Handler
+from arcsync.main import app
 from arcsync.core.store import init_db
 
 class HttpTests(unittest.TestCase):
@@ -19,28 +16,22 @@ class HttpTests(unittest.TestCase):
         cls.previous=os.environ.get('ARCSYNC_DB')
         os.environ['ARCSYNC_DB']=str(Path(cls.tmp.name)/'http.sqlite3')
         init_db()
-        cls.server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
-        cls.thread=threading.Thread(target=cls.server.serve_forever,daemon=True);cls.thread.start()
-        cls.base='http://127.0.0.1:'+str(cls.server.server_port)
+        cls.transport=TestClient(app)
     @classmethod
     def tearDownClass(cls):
-        cls.server.shutdown();cls.server.server_close();cls.thread.join();cls.tmp.cleanup()
+        cls.transport.close();cls.tmp.cleanup()
         if cls.previous is None: os.environ.pop('ARCSYNC_DB',None)
         else: os.environ['ARCSYNC_DB']=cls.previous
-    def setUp(self): self.client=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
+    def setUp(self): self.client=TestClient(app)
+    def tearDown(self): self.client.close()
     def request(self,path,data=None,protected=True,origin=None):
         headers={}
         if data is not None:
             headers['Content-Type']='application/json'
             if protected: headers['X-ArcSync-Request']='1'
         if origin: headers['Origin']=origin
-        req=urllib.request.Request(self.base+path,data=None if data is None else json.dumps(data).encode(),headers=headers)
-        try:
-            with self.client.open(req) as r:
-                body=r.read();return r.status,json.loads(body) if r.headers['Content-Type'].startswith('application/json') else body
-        except urllib.error.HTTPError as e:
-            try: return e.code,json.loads(e.read())
-            finally: e.close()
+        response=self.client.request('GET' if data is None else 'POST',path,content=None if data is None else json.dumps(data).encode(),headers=headers)
+        return response.status_code,response.json() if response.headers['Content-Type'].startswith('application/json') else response.content
     def login(self,role='organizer'): return self.request('/api/login',{'role':role,'password':os.environ.get('ARCSYNC_DEMO_PASSWORD','ArcSync2026!')})
     def test_requires_login(self): self.assertEqual(self.request('/api/state')[0],401)
     def test_login_search_preview_logout(self):

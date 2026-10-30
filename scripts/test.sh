@@ -1,6 +1,10 @@
 #!/usr/bin/env sh
 set -eu
 cd "$(dirname "$0")/.."
+ARCSYNC_PYTHON="${ARCSYNC_PYTHON:-python3}"
+if [ -x .venv/bin/python ] && [ "$ARCSYNC_PYTHON" = python3 ]; then ARCSYNC_PYTHON="$PWD/.venv/bin/python"; fi
 export PYTHONPATH="$PWD/src${PYTHONPATH:+:$PYTHONPATH}"
+# Automated tests always use disposable SQLite, never an operator's MySQL.
+export ARCSYNC_DATABASE_URL=''
 node --check src/frontend/app.js
-python3 -m unittest discover -s tests -v
+"$ARCSYNC_PYTHON" -m unittest discover -s tests -v

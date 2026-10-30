@@ -1,7 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 cd "$(dirname "$0")/.."
+ARCSYNC_PYTHON="${ARCSYNC_PYTHON:-python3}"
+if [ -x .venv/bin/python ] && [ "$ARCSYNC_PYTHON" = python3 ]; then ARCSYNC_PYTHON="$PWD/.venv/bin/python"; fi
 node --check src/frontend/app.js
-python3 -m compileall -q src/arcsync
+"$ARCSYNC_PYTHON" -m compileall -q src/arcsync
 mkdir -p dist
-python3 scripts/package_app.py
+"$ARCSYNC_PYTHON" scripts/package_app.py

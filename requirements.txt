@@ -1,2 +1,11 @@
-# Python 3.11+。本地演示使用标准库，无需安装第三方依赖。
-# 前端同样无需第三方依赖，可离线运行。
+# Python 3.11+; HTTP API and ASGI runtime.
+fastapi==0.162.0
+uvicorn==0.54.0
+# HTTP model adapters and API / concurrency test client.
+httpx==0.28.1
+
+# Layer 3/4: semantic retrieval and configurable data/model connections.
+faiss-cpu==1.15.1
+numpy==2.3.5
+PyMySQL[rsa]==1.2.3
+python-dotenv==1.2.4

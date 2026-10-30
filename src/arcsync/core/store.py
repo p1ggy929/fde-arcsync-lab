@@ -4,6 +4,7 @@ import json
 import os
 import secrets
 import sqlite3
+from ..data_models.config import database_kind
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -25,6 +26,9 @@ class Connection(sqlite3.Connection):
             self.close()
 
 def connect(path=None):
+    if path is None and database_kind()=='mysql':
+        from ..data_models.mysql import MySQLConnection
+        return MySQLConnection(os.environ['ARCSYNC_DATABASE_URL'])
     target = path or os.environ.get('ARCSYNC_DB', str(ROOT / 'data' / 'arcsync.sqlite3'))
     Path(target).parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(target, timeout=15, factory=Connection)
@@ -42,7 +46,12 @@ def event(db, bid, user, action, detail=''):
 
 def init_db(path=None):
     with connect(path) as db:
-        db.executescript('''
+        if getattr(db,'dialect','sqlite')=='mysql':
+            from ..data_models.mysql import initialize
+            initialize(db)
+        else:
+            db.execute('PRAGMA journal_mode=WAL')
+            db.executescript('''
         CREATE TABLE IF NOT EXISTS users(role TEXT PRIMARY KEY,name TEXT,salt TEXT,password TEXT);
         CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,role TEXT,created TEXT);
         CREATE TABLE IF NOT EXISTS documents(id TEXT PRIMARY KEY,title TEXT,category TEXT,year INTEGER,level TEXT,
@@ -62,6 +71,13 @@ def init_db(path=None):
         CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT,'audit is append only'); END;
         CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT,'audit is append only'); END;
         ''')
+        if getattr(db,'dialect','sqlite')=='sqlite':
+            db.executescript('''
+            CREATE TABLE IF NOT EXISTS document_chunks(id TEXT PRIMARY KEY,document_id TEXT,version TEXT,scan_page INTEGER,paper_page INTEGER,content TEXT,source TEXT);
+            CREATE TABLE IF NOT EXISTS vector_embeddings(id TEXT PRIMARY KEY,chunk_id TEXT,fingerprint TEXT,content_hash TEXT,vector_json TEXT);
+            CREATE TABLE IF NOT EXISTS agent_runs(id TEXT PRIMARY KEY,role TEXT,question TEXT,status TEXT,answer TEXT,sources TEXT,created TEXT,updated TEXT,usage TEXT,error TEXT);
+            CREATE TABLE IF NOT EXISTS agent_steps(id INTEGER PRIMARY KEY,run_id TEXT,at TEXT,kind TEXT,detail TEXT);
+            ''')
         for role, (name, _) in ROLES.items():
             salt = secrets.token_hex(16)
             password = hashlib.pbkdf2_hmac('sha256', os.environ.get('ARCSYNC_DEMO_PASSWORD', 'ArcSync2026!').encode(), salt.encode(), 120000).hex()

@@ -29,6 +29,7 @@ const paths = {
 const icon = (name, cls = '') => `<svg class="icon ${cls}" aria-hidden="true" viewBox="0 0 24 24"><path d="${paths[name] || paths.file}"/></svg>`;
 const navigation = [
  ['dashboard','工作台','grid'], ['businesses','查阅业务','file'], ['search','档案检索','search'],
+ ['agent','智能查阅','chat'], ['models','模型与知识','settings'],
  ['reviews','审核与交接','swap'], ['issues','异常与修复','alert'], ['metrics','试点评估','chart'],
  ['feedback','服务反馈','chat'], ['settings','管理与审计','settings']
 ];
@@ -63,20 +64,32 @@ function toast(message, error=false) {
   clearTimeout(toastTimer);const el=$('#toast');el.textContent=message;el.className=`visible${error?' error':''}`;
   toastTimer=setTimeout(()=>el.className='',4300);
 }
-async function refresh() { S=await api('state'); }
+let overview=null, searchController=null;
+const isAdmin = () => S?.user.portal==='admin';
+const visibleNavigation = () => navigation.filter(n=>isAdmin()||!['metrics','settings','models'].includes(n[0])).map(n=>!isAdmin()&&n[0]==='reviews'?[n[0],'我的交接',n[2]]:n);
+const portalLabel = () => isAdmin()?'管理后台 · B 端':'员工门户 · C 端';
+async function refresh() {
+ S=await api('state');
+ if(isAdmin())overview=await api('admin/overview');
+ if(location.pathname!==S.user.home)history.replaceState(null,'',S.user.home+location.hash);
+ document.title=`${isAdmin()?'管理后台':'员工门户'} · 云州档案`;
+}
 function renderLogin(error='') {
-  $('#app').innerHTML=`<div class="login"><section class="login-story"><div class="brand"><div class="brandmark">${icon('archive')}</div><div><strong>云州档案</strong><small>YUNZHOU ARCHIVES</small></div></div><h1>让每一次查阅，<br>都有据可循。</h1><p>从档案检索到卷页核对，把原卷依据、人工判断与责任交接连接在一起。</p><div class="login-art">${archiveArt()}</div><footer>ARCSYNC / 档案检索与查阅协同平台 · 本地演示版</footer></section><section class="login-form-wrap"><form class="login-form" data-form="login"><div class="eyebrow">WELCOME TO ARCSYNC</div><h2>进入档案工作台</h2><p>选择业务岗位，开始一次有依据的查阅。</p><div class="notice sage">${icon('shield')}<span>当前为合成数据演示环境，不含真实档案。岗位切换用于验证不同权限与业务流程。</span></div>${select('当前岗位','role', [['organizer','林亦舟 · 档案整理员'],['reviewer','唐映秋 · 查阅审核员'],['protector','傅景 · 档案保护专员'],['engineer','秦芮 · 档案系统工程师'],['director','顾明岚 · 档案服务主任'],['representative','叶书 · 业务查询代表']])}${field('演示口令','password','输入本地演示口令','ArcSync2026!','password')}<div class="error-inline">${h(error)}</div><button class="btn primary full" type="submit">进入工作台 ${icon('arrow')}</button><div class="login-caption">默认演示口令：<span class="mono">ArcSync2026!</span><br>登录有效期 8 小时。真实身份认证与业务授权需在生产接入时配置。</div></form></section></div>`;
+ searchController?.abort();agentController?.abort();agentState={question:'',answer:'',sources:[],trace:[]};
+ if(location.pathname!=='/')history.replaceState(null,'','/');
+ document.title='欢迎使用 · 云州档案';
+ $('#app').innerHTML=`<div class="welcome"><header class="welcome-header"><a class="brand" href="/"><div class="brandmark">${icon('archive')}</div><div><strong>云州档案</strong><small>YUNZHOU ARCHIVES</small></div></a><span class="mode-tag">合成数据演示</span></header><main class="welcome-grid"><section class="welcome-story"><div class="eyebrow">ONE PLATFORM · CONNECTED WORK</div><h1>让查阅有依据，<br>让协作有归属。</h1><p>从提出需求到核对原卷，从人工审核到服务交付。<br>一个入口，连接员工服务与业务管理。</p><div class="portal-cards"><article><span class="portal-icon">${icon('book')}</span><small>EMPLOYEE PORTAL / C</small><h2>员工门户</h2><p>申请与进度 · 档案检索<br>卷页引用 · 交接与反馈</p><span>业务查询代表 / 档案整理员</span></article><article><span class="portal-icon blue">${icon('shield')}</span><small>MANAGEMENT / B</small><h2>管理后台</h2><p>权限与审核 · 异常修复<br>运行评估 · 风险与审计</p><span>审核 / 保护 / 工程 / 主任</span></article></div><div class="welcome-foot">人工确认关键依据 · 岗位权限由服务端校验 · 全流程留痕</div></section><section class="welcome-signin"><form class="login-form" data-form="login"><div class="eyebrow">WELCOME BACK</div><h2>登录云州档案</h2><p>使用账号登录，自动进入对应工作端。</p>${field('账号','username','例如：organizer','','text')}${field('密码','password','请输入密码','','password')}<div class="error-inline" role="alert">${h(error)}</div><button class="btn primary full" type="submit">登录并进入 ${icon('arrow')}</button><div class="account-examples"><strong>体验账号</strong><p>点击账号填入，可修改后登录。</p>${[['organizer','林亦舟 · 整理员 / C'],['representative','叶书 · 查询代表 / C'],['reviewer','唐映秋 · 审核员 / B'],['engineer','秦芮 · 工程师 / B'],['protector','傅景 · 保护专员 / B'],['director','顾明岚 · 主任 / B']].map(([account,label])=>`<button type="button" data-action="account" data-id="${account}"><span>${label}</span><code>${account}</code></button>`).join('')}<div class="login-caption">默认演示密码：ArcSync2026!<br>当前仅含合成资料，真实档案与统一身份认证待接入。</div></div></form></section></main><footer class="welcome-footer">ARCSYNC / 档案检索与查阅协同平台</footer></div>`;
 }
 function archiveArt(){return '<div class="hero-circle"></div><div class="archive-drawing"><div class="archive-label">档案<small>YUNZHOU · ARCHIVES</small></div></div>';}
 function sidebar(){
  const pending=S.businesses.filter(b=>owned(b)&&b.status!=='已交付').length;
  const issues=S.issues.filter(i=>i.status!=='已处理').length;
  const handoffs=S.handoffs.filter(x=>x.receiver===S.user.role&&x.status==='待接手').length;
- return `<aside class="sidebar"><a class="brand" href="#dashboard" aria-label="云州档案工作台"><div class="brandmark">${icon('archive')}</div><div><strong>云州档案</strong><small>YUNZHOU ARCHIVES</small></div></a><div class="nav-label">业务工作空间</div><nav class="nav">${navigation.map(([id,title,i],n)=>`${n===5?'<div class="nav-label">评估与管理</div>':''}<a href="#${id}" class="${current===id||current==='detail'&&id==='businesses'?'active':''}" ${current===id?'aria-current="page"':''} title="${title}">${icon(i)}<span>${title}</span>${id==='dashboard'&&pending?`<span class="nav-count">${pending}</span>`:id==='issues'&&issues?`<span class="nav-count">${issues}</span>`:id==='reviews'&&handoffs?`<span class="nav-count">${handoffs}</span>`:''}</a>`).join('')}</nav><div class="sidebar-bottom"><div class="pilot-card"><strong>有边界的智能辅助</strong><p>每一条建议都关联原卷依据<br>每一次交接都有明确责任</p><span>公开档案 · 小范围试点 ${icon('arrow')}</span></div><div class="sidebar-foot"><span class="dot"></span> 本地服务运行中 · v0.1.0</div></div></aside>`;
+ return `<aside class="sidebar"><a class="brand" href="#dashboard" aria-label="云州档案工作台"><div class="brandmark">${icon('archive')}</div><div><strong>云州档案</strong><small>YUNZHOU ARCHIVES</small></div></a><div class="nav-label">${portalLabel()}</div><nav class="nav">${visibleNavigation().map(([id,title,i],n)=>`${id==='metrics'?'<div class="nav-label">评估与管理</div>':''}<a href="#${id}" class="${current===id||current==='detail'&&id==='businesses'?'active':''}" ${current===id?'aria-current="page"':''} title="${title}">${icon(i)}<span>${title}</span>${id==='dashboard'&&pending?`<span class="nav-count">${pending}</span>`:id==='issues'&&issues?`<span class="nav-count">${issues}</span>`:id==='reviews'&&handoffs?`<span class="nav-count">${handoffs}</span>`:''}</a>`).join('')}</nav><div class="sidebar-bottom"><div class="pilot-card"><strong>有边界的智能辅助</strong><p>每一条建议都关联原卷依据<br>每一次交接都有明确责任</p><span>公开档案 · 小范围试点 ${icon('arrow')}</span></div><div class="sidebar-foot"><span class="dot"></span> 本地服务运行中 · v0.3.0</div></div></aside>`;
 }
 function shell(content){
  const name=navigation.find(n=>n[0]===current)?.[1] || '业务详情';
- $('#app').innerHTML=`<div class="shell">${sidebar()}<div class="workspace"><header class="topbar"><div class="crumb"><span>业务工作空间</span>${icon('chevron')}<strong>${name}</strong></div><div class="top-right"><button class="icon-btn" data-action="refresh" aria-label="刷新业务数据" title="刷新业务数据">${icon('refresh')}</button><span class="mode-tag">合成数据演示</span><span class="header-date">${new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(new Date())}</span><button class="profile" data-action="role" title="切换演示岗位"><span class="avatar">${h(S.user.name.slice(-2))}</span><span><strong>${h(S.user.name)}</strong><small>${h(S.user.label)}</small></span>${icon('down')}</button></div></header><main class="main">${S.settings.paused==='true'?`<div class="notice red">${icon('pause')}<span>试点已暂停。自动推荐和正常流程推进已停止，可继续查看、保存草稿和处理人工异常。</span></div>`:''}${S.settings.stale?`<div class="notice">${icon('clock')}<span>数据暂未更新。当前为 ${date(S.settings.sync_at,true)} 的只读来源快照，不能作为实时承诺。关键依据请转人工复核。</span></div>`:''}${content}<footer class="footer"><span>© 2026 云州档案服务中心 · ARCSYNC</span><span>合成数据演示 · 原卷须人工确认 · 不改变开放范围与档案处置</span></footer></main></div></div>`;
+ $('#app').innerHTML=`<div class="shell">${sidebar()}<div class="workspace"><header class="topbar"><div class="crumb"><span>${portalLabel()}</span>${icon('chevron')}<strong>${name}</strong></div><div class="top-right"><button class="icon-btn" data-action="refresh" aria-label="刷新业务数据" title="刷新业务数据">${icon('refresh')}</button><span class="mode-tag">合成数据演示</span><span class="header-date">${new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(new Date())}</span><button class="profile" data-action="role" title="当前账号与退出登录"><span class="avatar">${h(S.user.name.slice(-2))}</span><span><strong>${h(S.user.name)}</strong><small>${h(S.user.label)}</small></span>${icon('down')}</button></div></header><main class="main">${S.settings.paused==='true'?`<div class="notice red">${icon('pause')}<span>试点已暂停。自动推荐和正常流程推进已停止，可继续查看、保存草稿和处理人工异常。</span></div>`:''}${S.settings.stale?`<div class="notice">${icon('clock')}<span>数据暂未更新。当前为 ${date(S.settings.sync_at,true)} 的只读来源快照，不能作为实时承诺。关键依据请转人工复核。</span></div>`:''}${content}<footer class="footer"><span>© 2026 云州档案服务中心 · ARCSYNC</span><span>合成数据演示 · 原卷须人工确认 · 不改变开放范围与档案处置</span></footer></main></div></div>`;
 }
 function heading(title,desc,actions='',eyebrow=''){return `<div class="page-heading"><div>${eyebrow?`<div class="eyebrow">${eyebrow}</div>`:''}<h1>${title}</h1><p>${desc}</p></div>${actions?`<div class="button-row">${actions}</div>`:''}</div>`;}
 function stat(label,num,unit,foot,ico='file',warn=false){return `<div class="stat"><div class="stat-head">${label}<span class="stat-icon">${icon(ico)}</span></div><div class="stat-num">${num}<em>${unit}</em></div><div class="stat-foot ${warn?'warn':''}">${foot}</div></div>`;}
@@ -95,6 +108,14 @@ function dashboard(){
  <section class="stats">${stat('我的待办',mine.length,'笔','<b>当前责任</b> 待确认接手后转移','inbox')}${stat('待接手交接',incoming.length,'笔','<b>确认接手</b> 才完成责任交接','swap')}${stat('未解决异常',issues.length,'项','<b>人工处理</b> 保留触发原因与依据','alert',true)}${stat('已交付业务',done,'笔','本地演示数据 · 不计试点成果','check')}</section>
  <div class="dashboard-grid"><div><section class="panel"><div class="panel-head"><h2>业务待办 <small>按业务编号统一追踪</small></h2><a href="#businesses">全部业务 ${icon('arrow')}</a></div><div class="tabs">${[['mine','我的待办',mine.length],['handoff','待我接手',incoming.length],['all','全部进行中',S.businesses.length-done]].map(([id,label,n])=>`<button class="${taskTab===id?'active':''}" data-action="task-tab" data-tab="${id}">${label}<span>${n}</span></button>`).join('')}</div>${caseTable(shown.slice(0,5),true)}<div class="table-footer"><span>共 ${shown.length} 笔业务 · 每笔业务独立留痕</span><span>业务记录 ${icon('shield')}</span></div></section><section class="panel"><div class="panel-head"><div><h2>查阅协作流程</h2><p>依据随单流转，异常有明确接手人</p></div><span class="badge">人工审核把关</span></div>${flow()}<div class="flow-foot">${icon('shield')} 系统辅助定位与核对，最终审核和交付由授权人员确认。</div></section></div><aside class="dashboard-aside"><section class="panel"><div class="panel-head"><h2>需要关注</h2><a href="#issues">${icon('arrow')}</a></div>${issues.length?issues.slice(0,2).map(i=>`<a href="#issues" class="aside-item"><span class="aside-icon">${icon('alert')}</span><div><strong>${h(i.kind)}</strong><p>${h(i.detail)}</p><small>${h(roleName(i.owner))} · ${h(i.status)}</small></div></a>`).join(''):empty('暂无未解决异常','继续保持依据完整','check')}<div class="aside-item"><span class="aside-icon">${icon('shield')}</span><div><strong>引用准确率目标 99%</strong><p>指标须经历史回放和人工复核验证，当前尚未形成试点评估样本。</p><small>试点目标 · 非实测成绩</small></div></div></section>${systemPanel()}</aside></div>`;
 }
+function adminDashboard(){
+ const incoming=S.handoffs.filter(x=>x.receiver===S.user.role&&x.status==='待接手');
+ const mine=S.businesses.filter(b=>owned(b)&&b.status!=='已交付');
+ return `${heading('管理总览','将权限、责任与处理依据连接起来，及时处理审核积压与数据异常。',btn('刷新运行数据','refresh','','primary','refresh'),'MANAGEMENT CONSOLE')}
+ <section class="admin-hero"><div><span class="eyebrow">GOVERNANCE · REVIEW · OPERATIONS</span><h2>${h(S.user.name)}，欢迎回来。</h2><p>当前岗位：${h(S.user.label)}。各项管理操作仍按岗位独立授权。</p></div><a class="btn primary" href="#reviews">进入审核与交接 ${icon('arrow')}</a></section>
+ <section class="stats">${stat('待核验与审核',overview?.pending_reviews??0,'笔','按当前业务状态统计','shield')}${stat('待我接手',incoming.length,'笔','确认后转移责任','swap')}${stat('未解决异常',overview?.open_issues??0,'项','修复后仍须人工复核','alert',true)}${stat('试点运行',overview?.paused?'已暂停':'运行中','','由保护专员复盘恢复','grid')}</section>
+ <div class="dashboard-grid"><div><section class="panel"><div class="panel-head"><h2>本岗待处理</h2><a href="#reviews">审核与交接 ${icon('arrow')}</a></div>${caseTable(mine,true)}</section><section class="panel"><div class="panel-head"><h2>管理工作入口</h2></div><div class="admin-shortcuts">${[['reviews','审核与交接','核验范围、签核依据、确认接手','shield'],['issues','异常与修复','分派责任、修复说明、复核恢复','alert'],['metrics','试点评估','业务状态、流程计数与事件记录','chart'],['settings','管理与审计','暂停控制、快照状态与岗位审计','settings']].map(([id,title,desc,ico])=>`<a href="#${id}">${icon(ico)}<strong>${title}</strong><span>${desc}</span></a>`).join('')}</div></section></div><aside>${systemPanel()}<section class="panel"><div class="side-content"><h3>管理权限有边界</h3><p class="muted">主任的管理权限不扩大档案查看范围；受限资料仅向保护专员开放。恢复试点须由保护专员确认。</p></div></section></aside></div>`;
+}
 function greeting(){const hr=Number(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Shanghai',hour:'numeric',hour12:false}).format(new Date()));return hr<12?'上午好':hr<18?'下午好':'晚上好';}
 function flow(status=''){const names=['查阅申请','权限核验','档案检索','卷内定位','人工审核','记录交付'];const icons=['file','shield','search','book','check','inbox'];let idx={'待权限核验':1,'定位中':3,'待审核':4,'待复核':4,'待交付':5,'已交付':5}[status];return `<div class="mini-steps">${names.map((n,i)=>`<div class="mini-step ${(idx===undefined?i===3:i<=idx)?'highlight':''}"><span class="step-icon">${icon(icons[i])}</span>${n}</div>`).join('')}</div>`;}
 function systemPanel(){return `<section class="panel"><div class="panel-head"><h2>数据连接状态</h2><span class="dot"></span></div><div class="system-list">${[['档案管理库','待接入'],['数字化 OCR','待接入'],['授权审核台','待接入'],['本地样例数据','可用']].map(([a,b])=>`<div class="system-row"><span>${a}</span><span>${b}</span></div>`).join('')}</div><div class="system-foot">${icon('clock')} 本地快照：${date(S.settings.sync_at)}<br>真实接口待确认 · 业务状态计划每小时更新</div></section>`;}
@@ -107,14 +128,29 @@ function search(){
  return `${heading('档案检索','在授权范围内查找档案，回到原卷核对每一条引用。',btn('检索帮助','help','','','book'),'SEARCH & VERIFY')}<form class="filter-bar" data-form="search"><div class="search-input">${icon('search')}<input class="input" name="q" value="${h(searchQuery)}" placeholder="输入档案标题、档号或关键词，如：总体规划" aria-label="档案检索关键词"></div><select name="category" aria-label="档案类别"><option value="">全部类别</option>${categories.map(x=>`<option ${filters.category===x?'selected':''}>${h(x)}</option>`).join('')}</select><select name="year" aria-label="形成年度"><option value="">全部年度</option>${years.map(x=>`<option ${filters.year===String(x)?'selected':''}>${x}</option>`).join('')}</select><select name="status" aria-label="资料状态"><option value="">全部状态</option>${['有效','已更正','待修复'].map(x=>`<option ${filters.status===x?'selected':''}>${x}</option>`).join('')}</select><button type="submit" class="btn primary search-submit">${icon('search')} 检索</button></form><div class="result-layout"><div><div class="result-meta"><span id="result-count">正在查询授权目录…</span><span>目录与固定摘要匹配 · 未接入 AI</span></div><div id="search-results"><div class="loading">正在读取授权档案…</div></div></div><aside><section class="panel"><div class="panel-head"><h2>${icon('shield')} 本次查阅范围</h2></div><div class="side-content"><span class="badge">${hasRole('protector')?'公开与专员授权资料':'一类公开档案'}</span><h3>先核权限，再展示内容</h3><p>检索结果与卷页预览均由服务端校验。无权限资料不会进入候选结果或摘要。</p><div class="kv"><span>当前岗位</span><strong>${h(S.user.label)}</strong></div><div class="kv"><span>资料来源</span><strong>合成演示资料</strong></div><div class="kv"><span>写入原档案</span><strong>关闭</strong></div></div></section><section class="panel"><div class="panel-head"><h2>引用核对清单</h2></div><div class="side-content"><ol class="rule-list">${['核对档号、资料版本与原卷内容','区分扫描页序号与纸质页码','检查后续更正与适用范围','由整理员确认后加入业务依据'].map((s,i)=>`<li><span class="rule-number">${i+1}</span><span>${s}</span></li>`).join('')}</ol><div class="notice sage mt">${icon('eye')}<span>资料缺少依据、页码不符或版本冲突时，请暂停建议并转人工。</span></div></div></section></aside></div>`;
 }
 async function performSearch(){
- const seq=++searchSeq;
+ searchController?.abort();const controller=new AbortController();searchController=controller;
+ const seq=++searchSeq;searchResults=[];
  try{
- const qs=new URLSearchParams({q:searchQuery,...filters});const r=await api(`search?${qs}`);
- if(seq!==searchSeq||current!=='search')return;
- searchResults=r.documents;
- $('#result-count').textContent=`找到 ${searchResults.length} 份授权档案${searchQuery?` · “${searchQuery}”`:''}`;
- $('#search-results').innerHTML=searchResults.length?searchResults.map(docCard).join(''):empty('没有找到匹配档案','试试缩短关键词，或清除类别、年度和状态筛选','search');
- }catch(e){if(current==='search'&&$('#search-results'))$('#search-results').innerHTML=empty('检索暂未完成',e.message,'alert');}
+  const qs=new URLSearchParams({q:searchQuery,...filters});
+  const response=await fetch(`/api/search/stream?${qs}`,{signal:controller.signal});
+  if(!response.ok){const r=await response.json();if(response.status===401){S=null;renderLogin();}throw new Error(r.error||'检索请求失败');}
+  const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='',doneEvent=false;
+  while(true){
+   const {value,done}=await reader.read();buffer+=decoder.decode(value||new Uint8Array(),{stream:!done});
+   let boundary;
+   while((boundary=buffer.indexOf('\n\n'))>=0){
+    const frame=buffer.slice(0,boundary);buffer=buffer.slice(boundary+2);
+    const lines=frame.split('\n'),event=lines.find(l=>l.startsWith('event: '))?.slice(7),data=JSON.parse(lines.find(l=>l.startsWith('data: '))?.slice(6)||'{}');
+    if(seq!==searchSeq||current!=='search'||!S)return;
+    if(event==='expired'){S=null;renderLogin();throw new Error(data.error);}
+    if(event==='document')searchResults.push(data);
+    if(event==='done')doneEvent=true;
+    $('#result-count').textContent=`${doneEvent?'已完成检索':'正在接收'} · ${searchResults.length} 份授权档案`;
+    $('#search-results').innerHTML=searchResults.length?searchResults.map(docCard).join(''):doneEvent?empty('没有找到匹配档案','试试缩短关键词或清除筛选','search'):'<div class="loading">正在读取授权目录…</div>';
+   }
+   if(done){if(!doneEvent)throw new Error('检索连接中断，请重新检索');break;}
+  }
+ }catch(e){if(e.name!=='AbortError'&&seq===searchSeq&&current==='search'&&$('#search-results'))$('#search-results').innerHTML=empty('检索暂未完成',e.message,'alert');}
 }
 function docCard(d){return `<article class="doc-card"><div class="doc-file">${icon('file')}</div><div class="doc-body"><div class="doc-top"><button class="doc-title" data-action="read" data-id="${h(d.id)}">${h(d.title)}</button>${badge(d.status)}</div><div class="doc-meta"><span>${h(d.id)}</span><span>${d.year} 年</span><span>${h(d.category)}</span><span>${d.pages} 页</span><span>${h(d.version)}</span><span>${h(d.level)}</span></div><p class="doc-summary">${h(d.summary)}</p>${d.correction?`<div class="doc-correction">${icon('swap')} ${d.status==='已更正'?'此版本已更正，须查阅后续文件':'存在后续更正，引用前须核对'}：${h(d.correction)}</div>`:''}${d.status==='待修复'?'<div class="doc-correction">页码或日期存在歧义，已从自动推荐样本中排除。</div>':''}<div class="doc-bottom"><span class="doc-source">${h(d.match_reason||'授权目录')} · 合成资料</span>${btn('打开原卷 · 核对卷页','read',`data-id="${h(d.id)}"`,'small', 'book')}</div></div></article>`;}
 function eventDetail(e){
@@ -162,15 +198,18 @@ function settingsView(){
 }
 function render(){
  if(!S){renderLogin();return;}
- const views={dashboard,businesses,search,detail,reviews,issues,metrics,feedback,settings:settingsView};
+ const views={agent:agentView,models:modelsView,dashboard:isAdmin()?adminDashboard:dashboard,businesses,search,detail,reviews,issues,metrics,feedback,settings:settingsView};
  shell((views[current]||dashboard)());
  // Dynamic bar lengths are set as CSS properties, never HTML from user input.
  $$('[data-bar]').forEach(el=>el.style.width=`${Math.max(0,Math.min(100,Number(el.dataset.bar)))}%`);
  if(current==='search')performSearch();
+ if(current==='agent'){loadAgentStatus();agentHistory();paintAgent();}
+ if(current==='models')loadAgentStatus();
 }
 function route(){
+ searchController?.abort();agentController?.abort();
  const [view,id]=(location.hash.slice(1)||'dashboard').split('/');
- current=(navigation.some(n=>n[0]===view)||view==='detail')?view:'dashboard';
+ current=(visibleNavigation().some(n=>n[0]===view)||view==='detail')?view:'dashboard';
  if(view==='detail')selectedCase=id;
  if(S){render();window.scrollTo(0,0);}
 }
@@ -193,10 +232,11 @@ function drawReader(){
  const eligible=S.businesses.filter(b=>owned(b)&&b.status==='定位中');
  const allowed=hasRole('organizer')&&d.status==='有效'&&S.settings.paused!=='true'&&eligible.length>0;
  const matched=selectedCase&&eligible.some(b=>b.id===selectedCase)?selectedCase:eligible[0]?.id;
- $('.modal').innerHTML=`<header class="modal-head"><h2>原卷核对 <span class="demo-label">合成卷页 · 非真实扫描件</span></h2><button class="icon-btn" data-action="close" aria-label="关闭对话框">${icon('close')}</button></header><div class="reader-body"><aside class="reader-nav"><div class="eyebrow">ARCHIVE READER</div><h3>${h(d.title)}</h3><p>${h(d.id)}<br>${h(d.version)} · ${d.pages} 页<br>${h(d.category)} · ${d.year} 年</p>${[Math.max(1,r.scan_page-1),r.scan_page,Math.min(d.pages,r.scan_page+1)].filter((p,i,a)=>a.indexOf(p)===i).map(p=>`<button class="thumb ${p===r.scan_page?'active':''}" data-action="reader-page" data-page="${p}" aria-label="扫描第 ${p} 页"><div class="thumb-lines"></div><div class="thumb-lines"></div><div class="thumb-lines"></div><div class="thumb-lines"></div><div class="thumb-label">第 ${p} 页</div></button>`).join('')}</aside><div class="reader-center"><form class="reader-toolbar" data-form="reader-page"><span>扫描页序号 <input class="input" type="number" name="page" min="1" max="${d.pages}" value="${r.scan_page}" aria-label="跳转扫描页"> / ${d.pages} <button class="btn small" type="submit">跳转</button></span><span>纸质页码 ${r.paper_page??'待核对'}</span></form><article class="paper"><div class="paper-watermark">合成演示资料</div><small>云 州 档 案 服 务 中 心 · 合 成 卷 页</small><h2>${h(d.title)}</h2><hr class="paper-rule"><small>${h(d.id)}　${h(d.version)}</small>${r.paragraphs.map(p=>`<p>${h(p)}</p>`).join('')}<div class="paper-page">— ${r.paper_page??'页码待核对'} —</div></article></div><aside class="reader-aside"><h3>引用依据核对</h3>${badge(d.status)}<dl><dt>档号 / 资料版本</dt><dd>${h(d.id)}<br>${h(d.version)}</dd><dt>扫描页 → 纸质页</dt><dd>第 ${r.scan_page} 页 → ${r.paper_page===null?'映射待修复':`第 ${r.paper_page} 页`}</dd><dt>资料来源</dt><dd>本地生成的合成卷页<br>不代表真实 OCR 或原始档案</dd></dl>${d.correction?`<div class="notice">${icon('swap')}<span>后续更正：${h(d.correction)}<br>${btn('查看更正文件','read',`data-id="${h(d.correction)}" data-page="1"`,'small mt')}</span></div>`:''}${d.status!=='有效'?`<div class="notice red">${icon('alert')}<span>此资料不能直接加入推荐依据，请转人工核对。</span></div>`:''}<form data-form="cite"><div class="field mt"><label for="reader-business">关联查阅业务</label><select id="reader-business" name="business_id" ${!allowed?'disabled':''}>${eligible.length?eligible.map(b=>`<option value="${h(b.id)}" ${b.id===matched?'selected':''}>${h(b.title)}</option>`).join(''):'<option>暂无由您负责的定位中业务</option>'}</select></div><label class="checkbox"><input type="checkbox" name="confirmed" required ${!allowed?'disabled':''}>我已核对本页内容、资料版本与纸质页码</label>${d.correction?`<label class="checkbox"><input type="checkbox" name="correction_checked" required ${!allowed?'disabled':''}>我已阅读后续更正，确认此引用的适用范围</label>`:''}<div class="error-inline" id="form-error"></div><button class="btn primary full" type="submit" ${!allowed?'disabled':''}>${icon('check')} 确认并加入业务依据</button></form><p class="muted">${!hasRole('organizer')?'卷页确认由档案整理员操作。':!eligible.length?'请先完成业务权限核验，再进行引用确认。':'引用将绑定资料版本，保存人工核对记录。'}</p>${hasRole('organizer','reviewer','engineer','protector')?btn('暂停建议 · 转人工','reader-issue','','full danger','alert'):''}</aside></div>`;
+ $('.modal').innerHTML=`<header class="modal-head"><h2>原卷核对 <span class="demo-label">${r.synthetic?'合成卷页 · 非真实扫描件':'人工导入文本 · 未核验扫描件'}</span></h2><button class="icon-btn" data-action="close" aria-label="关闭对话框">${icon('close')}</button></header><div class="reader-body"><aside class="reader-nav"><div class="eyebrow">ARCHIVE READER</div><h3>${h(d.title)}</h3><p>${h(d.id)}<br>${h(d.version)} · ${d.pages} 页<br>${h(d.category)} · ${d.year} 年</p>${[Math.max(1,r.scan_page-1),r.scan_page,Math.min(d.pages,r.scan_page+1)].filter((p,i,a)=>a.indexOf(p)===i).map(p=>`<button class="thumb ${p===r.scan_page?'active':''}" data-action="reader-page" data-page="${p}" aria-label="扫描第 ${p} 页"><div class="thumb-lines"></div><div class="thumb-lines"></div><div class="thumb-lines"></div><div class="thumb-lines"></div><div class="thumb-label">第 ${p} 页</div></button>`).join('')}</aside><div class="reader-center"><form class="reader-toolbar" data-form="reader-page"><span>扫描页序号 <input class="input" type="number" name="page" min="1" max="${d.pages}" value="${r.scan_page}" aria-label="跳转扫描页"> / ${d.pages} <button class="btn small" type="submit">跳转</button></span><span>纸质页码 ${r.paper_page??'待核对'}</span></form><article class="paper"><div class="paper-watermark">${r.synthetic?'合成演示资料':'人工导入文本'}</div><small>云 州 档 案 服 务 中 心 · ${r.synthetic?'合成卷页':'人工提供文本'}</small><h2>${h(d.title)}</h2><hr class="paper-rule"><small>${h(d.id)}　${h(d.version)}</small>${r.paragraphs.map(p=>`<p>${h(p)}</p>`).join('')}<div class="paper-page">— ${r.paper_page??'页码待核对'} —</div></article></div><aside class="reader-aside"><h3>引用依据核对</h3>${badge(d.status)}<dl><dt>档号 / 资料版本</dt><dd>${h(d.id)}<br>${h(d.version)}</dd><dt>扫描页 → 纸质页</dt><dd>第 ${r.scan_page} 页 → ${r.paper_page===null?'映射待修复':`第 ${r.paper_page} 页`}</dd><dt>资料来源</dt><dd>${r.synthetic?'本地生成的合成卷页<br>不代表真实 OCR 或原始档案':'人工提供的页文本<br>未核验原始扫描件'}</dd></dl>${d.correction?`<div class="notice">${icon('swap')}<span>后续更正：${h(d.correction)}<br>${btn('查看更正文件','read',`data-id="${h(d.correction)}" data-page="1"`,'small mt')}</span></div>`:''}${d.status!=='有效'?`<div class="notice red">${icon('alert')}<span>此资料不能直接加入推荐依据，请转人工核对。</span></div>`:''}<form data-form="cite"><div class="field mt"><label for="reader-business">关联查阅业务</label><select id="reader-business" name="business_id" ${!allowed?'disabled':''}>${eligible.length?eligible.map(b=>`<option value="${h(b.id)}" ${b.id===matched?'selected':''}>${h(b.title)}</option>`).join(''):'<option>暂无由您负责的定位中业务</option>'}</select></div><label class="checkbox"><input type="checkbox" name="confirmed" required ${!allowed?'disabled':''}>我已核对本页内容、资料版本与纸质页码</label>${d.correction?`<label class="checkbox"><input type="checkbox" name="correction_checked" required ${!allowed?'disabled':''}>我已阅读后续更正，确认此引用的适用范围</label>`:''}<div class="error-inline" id="form-error"></div><button class="btn primary full" type="submit" ${!allowed?'disabled':''}>${icon('check')} 确认并加入业务依据</button></form><p class="muted">${!hasRole('organizer')?'卷页确认由档案整理员操作。':!eligible.length?'请先完成业务权限核验，再进行引用确认。':'引用将绑定资料版本，保存人工核对记录。'}</p>${hasRole('organizer','reviewer','engineer','protector')?btn('暂停建议 · 转人工','reader-issue','','full danger','alert'):''}</aside></div>`;
 }
 async function handleAction(action,el){
  const id=el.dataset.id;
+ if(action.startsWith('agent-'))return agentAction(action,el);
  if(action==='close'){closeModal();return;}
  if(action==='refresh'){await refresh();render();toast('业务数据已刷新');return;}
  if(action==='task-tab'){taskTab=el.dataset.tab;render();return;}
@@ -204,10 +244,13 @@ async function handleAction(action,el){
  if(action==='create'){
   formModal('新建查阅申请',`<div class="notice sage">${icon('file')}<span>创建后进入权限核验，首期仅支持公开档案试点。此环境中的新业务仍属于演示数据。</span></div>${field('查阅事项','title','例如：县城总体规划批复查阅')}${field('申请单位','applicant','填写申请单位')}${textarea('查阅用途与范围','purpose','说明查阅目的、时期与希望核验的事项')}`,'create',{},'创建并提交权限核验');return;
  }
- if(action==='role'){
-  showModal('切换演示岗位',`<form class="modal-body" data-form="role"><p class="list-note">每个岗位使用独立服务端会话，切换后按对应权限显示内容。演示账号使用同一本地演示口令。</p><div class="role-grid">${S.roles.map(r=>`<label class="role-option"><input type="radio" name="role" value="${r.id}" ${r.id===S.user.role?'checked':''}>${h(r.label)}<small>${h(r.name)}</small></label>`).join('')}</div>${field('演示口令','password','输入演示口令','ArcSync2026!','password')}<div class="error-inline" id="form-error"></div><div class="modal-footer">${btn('退出登录','logout','','','logout')}<button class="btn primary" type="submit">确认切换岗位</button></div></form>`,{action:'role'});return;
+ if(action==='account'){
+  const form=$('[data-form="login"]');form.elements.username.value=id;form.elements.password.value='ArcSync2026!';form.elements.password.focus();return;
  }
- if(action==='logout'){await api('logout',{});S=null;closeModal();renderLogin();return;}
+ if(action==='role'){
+  showModal('当前账号',`<div class="modal-body"><h3>${h(S.user.name)} · ${h(S.user.label)}</h3><p>${portalLabel()}</p><p class="muted">更换账号后，系统会根据新账号重新确定工作端与操作权限。</p><div class="modal-footer">${btn('继续工作','close')}${btn('退出并更换账号','logout','','primary','logout')}</div></div>`);return;
+ }
+ if(action==='logout'){searchController?.abort();await api('logout',{});S=null;overview=null;closeModal();renderLogin();return;}
  if(action==='read'){await openReader(id,Number(el.dataset.page)||6);return;}
  if(action==='reader-page'){await openReader(modalContext.id,Number(el.dataset.page));return;}
  if(action==='help'){
@@ -262,8 +305,13 @@ async function handleAction(action,el){
 function issueFields(){return `${select('异常类型','kind',[['版本或更正关系异常','版本或更正关系异常'],['页码映射异常','页码映射异常'],['缺少引用依据','缺少引用依据'],['OCR 日期歧义','OCR 日期歧义'],['规则版本冲突','规则版本冲突'],['关键系统不可用','关键系统不可用']])}${textarea('触发原因与待核对内容','detail','写清涉及的资料、版本与具体问题，审核员将分派处理人')}`;}
 async function submitForm(form){
  const kind=form.dataset.form, data=Object.fromEntries(new FormData(form));
+ if(kind==='knowledge-import'){
+  const payload={...data,year:Number(data.year),pages:[{scan_page:Number(data.scan_page),paper_page:Number(data.paper_page),text:data.text}]};
+  delete payload.scan_page;delete payload.paper_page;delete payload.text;
+  await api('admin/knowledge/documents',payload);await refresh();render();toast('资料页文本已导入；首次智能检索时构建向量索引');return;
+ }
  if(kind==='login'||kind==='role'){
-  await api('login',data);await refresh();closeModal();route();toast(kind==='login'?'已进入档案工作台':'已切换岗位，按新岗位权限显示内容');return;
+  await api('login',data);await refresh();closeModal();location.hash='dashboard';route();toast('已进入'+(isAdmin()?'管理后台':'员工门户'));return;
  }
  if(kind==='search'){
   searchQuery=data.q.trim();filters={category:data.category,year:data.year,status:data.status};await performSearch();return;
@@ -298,6 +346,7 @@ async function submitForm(form){
 }
 document.addEventListener('click',async e=>{
  const el=e.target.closest('[data-action]');if(!el)return;
+ if(el.dataset.action==='agent-stop'){agentController?.abort();return;}
  if(busy)return;
  try{busy=true;await handleAction(el.dataset.action,el);}
  catch(err){toast(err.message,true);}
@@ -305,6 +354,7 @@ document.addEventListener('click',async e=>{
 });
 document.addEventListener('submit',async e=>{
  const form=e.target.closest('form[data-form]');if(!form)return;e.preventDefault();
+ if(form.dataset.form==='agent-chat'){askAgent(form);return;}
  if(busy)return;
  const submit=$('button[type="submit"]',form);if(submit)submit.disabled=true;busy=true;
  try{await submitForm(form);}
@@ -322,5 +372,78 @@ document.addEventListener('keydown',e=>{
  }
 });
 window.addEventListener('hashchange',route);
+
+function agentView(){
+ return `${heading('智能查阅','理解需求、检索资料、调用工具，再给出带来源的回答。','','ARCHIVE AGENT')}<div class="notice sage">${icon('shield')}<span>回答是查阅辅助。来源、版本与页码仍需人工核对，审核和交付按原流程执行。</span></div><div id="model-status" class="notice">正在读取模型配置…</div><div class="agent-layout"><section class="panel"><div class="panel-head"><h2>提出查阅需求</h2><span class="badge">依据优先</span></div><form class="side-content" data-form="agent-chat">${textarea('查阅问题','question','例如：对比县城总体规划批复与后续调整，说明需要核对哪些更正。',agentState.question)}<div class="button-row"><button class="btn primary" type="submit" id="agent-submit">${icon('chat')} 开始智能查阅</button>${btn('停止生成','agent-stop','','danger')}<span class="muted">支持检索、资料对比、业务进度及流程说明</span></div></form><div class="agent-answer"><div class="panel-head"><h2>查阅回答</h2><span id="agent-answer-state" class="muted"></span></div><div id="agent-answer" class="answer-text">${h(agentState.answer||'输入需求后，在这里查看回答。模型未配置时会提示配置状态。')}</div><div id="agent-sources" class="agent-sources"></div></div></section><aside><section class="panel"><div class="panel-head"><h2>执行过程</h2></div><ol class="agent-trace" id="agent-trace"><li>等待提出需求</li></ol></section><section class="panel"><div class="panel-head"><h2>最近查阅</h2>${btn('刷新','agent-history','','small')}</div><div id="agent-history" class="side-content muted">正在读取…</div></section></aside></div>`;
+}
+let agentState={question:'',answer:'',sources:[],trace:[]},agentController=null,modelStatus=null;
+function paintAgent(){
+ if(!$('#agent-answer'))return;
+ $('#agent-answer').textContent=agentState.answer||'等待回答…';
+ $('#agent-trace').innerHTML=agentState.trace.map(t=>`<li>${h(t)}</li>`).join('')||'<li>等待提出需求</li>';
+ $('#agent-sources').innerHTML=agentState.sources.map(s=>`<article class="agent-source"><strong>[${h(s.label)}] ${h(s.title)}</strong><p>${s.kind==='archive'?`${h(s.document_id)} · ${h(s.version)} · ${s.scan_page?`扫描 ${s.scan_page} / 纸质 ${s.paper_page} 页`:'目录摘要，未定位原卷页码'}`:s.kind==='business'?h(s.business_id):'经确认的平台操作规则'}</p><details><summary>查看依据文本</summary><p>${h(s.content)}</p></details>${s.kind==='archive'?btn('打开资料核对','read',`data-id="${h(s.document_id)}" data-page="${s.scan_page||6}"`,'small mt','book'):''}</article>`).join('');
+}
+async function loadAgentStatus(){
+ try{
+  modelStatus=await api('models/status');
+  const node=$('#model-status');if(!node)return;
+  node.className=`notice ${modelStatus.configured?'sage':''}`;
+  node.textContent=modelStatus.configured?`${modelStatus.provider} / ${modelStatus.model} · FAISS + ${modelStatus.database.toUpperCase()} · 配置已填写，连接与生成需实际验证`:`${modelStatus.message} 现有查阅业务可继续使用。配置方法见项目的模型接入说明。`;
+  if($('#model-details'))$('#model-details').innerHTML=[['对话模型',`${modelStatus.provider} / ${modelStatus.model||'未设置'}`],['嵌入模型',`${modelStatus.embedding_provider} / ${modelStatus.embedding_model||'未设置'}`],['向量检索',modelStatus.vector_store],['业务数据库',modelStatus.database.toUpperCase()],['受限资料模型上下文',modelStatus.restricted_context?'仅专员授权、本机模型':'关闭'],['执行上限',`${modelStatus.max_rounds} 轮 / ${modelStatus.max_tools} 次工具`]].map(([k,v])=>`<div class="kv"><span>${h(k)}</span><strong>${h(v)}</strong></div>`).join('');
+ }catch(e){if($('#model-status'))$('#model-status').textContent=e.message;}
+}
+async function agentHistory(){
+ try{const r=await api('agent/runs');if($('#agent-history'))$('#agent-history').innerHTML=r.runs.length?r.runs.map(item=>`<button class="history-item" data-action="agent-load" data-id="${h(item.id)}"><strong>${h(item.question)}</strong><span>${h(item.status)} · ${date(item.created)}</span></button>`).join(''):'当前账号暂无智能查阅记录';}
+ catch(e){if($('#agent-history'))$('#agent-history').textContent=e.message;}
+}
+async function askAgent(form){
+ if(agentController)return;
+ const question=new FormData(form).get('question').trim();if(!question)return;
+ const controller=new AbortController();agentController=controller;
+ agentState={question,answer:'',sources:[],trace:['正在连接智能体服务']};paintAgent();
+ const submit=$('#agent-submit');if(submit)submit.disabled=true;
+ let finished=false;
+ try{
+  const response=await fetch('/api/agent/chat/stream',{method:'POST',headers:{'Content-Type':'application/json','X-ArcSync-Request':'1'},body:JSON.stringify({question}),signal:controller.signal});
+  if(!response.ok){const body=await response.json();if(response.status===401){S=null;renderLogin();}throw new Error(body.error||'智能体请求失败');}
+  const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
+  while(true){
+   const chunk=await reader.read();buffer+=decoder.decode(chunk.value||new Uint8Array(),{stream:!chunk.done});let boundary;
+   while((boundary=buffer.indexOf('\n\n'))>=0){
+    const lines=buffer.slice(0,boundary).split('\n');buffer=buffer.slice(boundary+2);
+    const event=lines.find(l=>l.startsWith('event: '))?.slice(7),data=JSON.parse(lines.find(l=>l.startsWith('data: '))?.slice(6)||'{}');
+    if(event==='step')agentState.trace.push(data.message);
+    if(event==='intent')agentState.trace.push(`意图：${({retrieve:'资料检索',compare:'资料对比',business:'业务进度',procedure:'流程说明'})[data.intent]} · ${data.query}`);
+    if(event==='tool')agentState.trace.push(`工具 ${data.name}：${data.status==='running'?'执行中':data.status==='rejected'?'未执行：'+data.message:'已完成'}`);
+    if(event==='sources')agentState.sources=data.sources;
+    if(event==='token')agentState.answer+=data.text;
+    if(event==='done'){agentState.answer=data.answer;agentState.sources=data.sources;agentState.trace.push('生成完成，来源编号与当前版本校验通过，内容待人工复核');finished=true;}
+    if(event==='error'){agentState.answer='';agentState.trace.push('本次未完成，生成草稿已撤回');throw new Error(data.error);}
+    paintAgent();if($('#agent-answer-state'))$('#agent-answer-state').textContent=finished?'辅助回答 · 待人工复核':'生成中 · 草稿';
+   }
+   if(chunk.done){if(!finished)throw new Error('连接中断，未完成的草稿已撤回');break;}
+  }
+ }catch(error){
+  agentState.answer=error.name==='AbortError'?'已停止生成。':'智能查阅未完成：'+error.message;
+  agentState.sources=[];paintAgent();if($('#agent-answer-state'))$('#agent-answer-state').textContent='未完成';
+ }finally{agentController=null;if(submit?.isConnected)submit.disabled=false;if(current==='agent'&&S)agentHistory();}
+}
+function modelsView(){
+ const canImport=hasRole('engineer','protector');
+ return `${heading('模型与知识','连接对话与嵌入模型，管理可检索的资料版本。','','MODELS & KNOWLEDGE')}<div id="model-status" class="notice">正在读取配置…</div><div class="metric-grid"><section class="panel"><div class="panel-head"><h2>当前连接配置</h2></div><div class="side-content" id="model-details"></div><div class="side-content">${canImport?btn('检查模型连接','agent-check','','primary','refresh'):''}<p class="muted" id="model-check-result">模型地址和密钥在服务器本地 .env 中配置，密钥不返回浏览器。接入步骤见 docs/model-setup.md。</p></div></section><section class="panel"><div class="panel-head"><h2>资料与版本规则</h2></div><div class="side-content"><p>导入人工整理的页文本后，智能查阅会在账号授权范围内生成向量并执行混合检索。</p><p>原版本文本保留。更新资料请填写新版本号与更新前版本；已确认的旧引用会在审核时重新校验。</p><p>导入文本不代表已核验原始扫描件。受限资料只能由保护专员导入，默认不会发送给模型。</p><a class="btn" href="#agent">进入智能查阅 ${icon('arrow')}</a></div></section></div>${canImport?`<section class="panel"><div class="panel-head"><h2>导入资料页文本</h2><span class="muted">单页最多 5000 字</span></div><form class="side-content" data-form="knowledge-import"><div class="import-grid">${field('档号','id','例如：KS-2026-001')}${field('资料名称','title','填写资料名称')}${field('新版本号','version','例如：v1.0')}${field('更新前版本（新资料留空）','expected_version','例如：v1.0','','text',false)}${field('形成年度','year','例如：2026','','number')}${field('资料类别','category','例如：城市建设')}${select('开放级别','level',hasRole('protector')?[['公开','公开'],['受限','受限']]:[['公开','公开']])}${field('扫描页序号','scan_page','','1','number')}${field('纸质页码','paper_page','','1','number')}</div>${textarea('本页正文','text','粘贴已人工整理的资料文本，导入后仍需按原流程核对')}<div class="error-inline" id="form-error"></div><button class="btn primary" type="submit">导入并保留版本</button></form></section>`:''}`;
+}
+async function agentAction(action,el){
+ if(action==='agent-check'){
+  $('#model-check-result').textContent='正在检查模型和嵌入服务…';
+  try{const r=await api('admin/models/check',{});$('#model-check-result').textContent=`连接通过：${r.model}，向量维度 ${r.embedding_dimension}，本次耗时 ${r.latency_ms} ms。${r.notice}`;}
+  catch(e){$('#model-check-result').textContent=e.message;}
+ }
+ if(action==='agent-history')await agentHistory();
+ if(action==='agent-load'){
+  const r=await api('agent/runs/'+encodeURIComponent(el.dataset.id));
+  agentState={question:r.question,answer:r.answer||r.error||'本次未完成',sources:r.sources,trace:r.steps.map(s=>s.detail.message||s.detail.name||s.kind)};
+  const input=$('[name="question"]');if(input)input.value=r.question;paintAgent();
+ }
+}
 
 (async()=>{try{await refresh();route();}catch{renderLogin();}})();

@@ -93,6 +93,20 @@ def state(db,user):
       'events':[dict(r) for r in db.execute('SELECT * FROM events ORDER BY id DESC LIMIT 500')],
       'demo':True,'clock':now()}
 
+def check_imported_page(db,doc,page):
+    imported=db.execute('SELECT 1 FROM document_chunks WHERE document_id=? AND version=?',(doc['id'],doc['version'])).fetchone()
+    if imported and not db.execute('SELECT 1 FROM document_chunks WHERE document_id=? AND version=? AND scan_page=?',(doc['id'],doc['version'],page)).fetchone():
+        raise Problem('此扫描页文本尚未导入，不能确认引用',409)
+
+def check_citation_current(db,user,citation):
+    doc=readable_document(db,user,citation['document_id'])
+    if doc['version']!=citation['version'] or doc['status']!='有效':
+        raise Problem('依据资料已变化，须退回复核',409)
+    check_imported_page(db,doc,citation['scan_page'])
+    if doc['paper_start']+citation['scan_page']-1!=citation['paper_page']:
+        raise Problem('依据页码映射已变化，须退回复核',409)
+
+
 def mutate(db,user,action,data):
     role=user['role']
     if action=='create':
@@ -236,6 +250,7 @@ def mutate(db,user,action,data):
         if data.get('version')!=doc['version']: raise Problem('资料版本已变化，请重新核对',409)
         page=data.get('scan_page')
         if isinstance(page,bool) or not isinstance(page,int) or not 1<=page<=doc['pages']: raise Problem('扫描页超出有效范围')
+        check_imported_page(db,doc,page)
         paper=doc['paper_start']+page-1
         if type(data.get('paper_page')) is not int or data.get('paper_page')!=paper: raise Problem('纸质页码与已校验映射不一致')
         if doc['correction'] and data.get('correction_checked') is not True: raise Problem('请先核对后续更正关系',409)
@@ -257,8 +272,7 @@ def mutate(db,user,action,data):
         if action=='approve':
             if not b['citations']: raise Problem('缺少已确认引用，须退回定位',409)
             for c in b['citations']:
-                d=readable_document(db,user,c['document_id'])
-                if d['version']!=c['version'] or d['status']!='有效': raise Problem('依据资料已变化，须退回复核',409)
+                check_citation_current(db,user,c)
             if db.execute("SELECT 1 FROM issues WHERE business_id=? AND status!='已处理'",(b['id'],)).fetchone(): raise Problem('仍有未解决异常',409)
             change(db,user,b,'待交付','审核通过',text(data,'note'))
         elif action=='return':
@@ -268,6 +282,7 @@ def mutate(db,user,action,data):
             change(db,user,b,'定位中','退回定位',reason)
         elif action=='deliver':
             if b['status']!='待交付': raise Problem('须审核通过后才能交付',409)
+            for citation in b['citations']:check_citation_current(db,user,citation)
             change(db,user,b,'已交付','记录人工交付',text(data,'note'))
         elif action=='resume':
             if b['status']!='待复核': raise Problem('仅异常复核完成后可恢复',409)

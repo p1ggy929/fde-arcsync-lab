@@ -9,4 +9,4 @@ pilot:
   business_refresh_seconds: 3600
   evaluation_retention_days: 90  # 待组织确认；不自动删除
   source_write_enabled: false
-  ai_enabled: false
+  ai_enabled: false  # 模型运行时以 .env 为准，默认未配置

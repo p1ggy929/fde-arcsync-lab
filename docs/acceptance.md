@@ -2,7 +2,7 @@
 
 ## 本地功能验证
 
-`sh scripts/test.sh` 运行标准库 unittest 核心与真实 HTTP 测试，使用临时数据库，不写入演示工作数据。
+`sh scripts/test.sh` 运行unittest 核心、FastAPI ASGI HTTP、端权限、流式与并发测试，使用临时数据库，不写入演示工作数据。
 
 覆盖：
 

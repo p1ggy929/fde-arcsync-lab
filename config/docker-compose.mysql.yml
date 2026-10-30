@@ -1,0 +1,19 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${ARCSYNC_MYSQL_ROOT_PASSWORD:?请在本地 .env 填写 MySQL 管理密码}
+      MYSQL_DATABASE: arcsync
+      MYSQL_USER: arcsync
+      MYSQL_PASSWORD: ${ARCSYNC_MYSQL_PASSWORD:?请在本地 .env 填写 MySQL 业务账号密码}
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - arcsync_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", 'MYSQL_PWD="$$MYSQL_PASSWORD" mysqladmin ping -h 127.0.0.1 -u arcsync --silent']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+volumes:
+  arcsync_mysql:
