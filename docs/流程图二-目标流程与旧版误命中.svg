@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040" role="img" aria-labelledby="title">
+<title id="title">云州档案查阅协同目标流程与旧版误命中处置</title>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#205a48"/></marker><marker id="risk" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#b54e2c"/></marker></defs>
+<style>text{font-family:"PingFang SC","Hiragino Sans GB","Noto Sans CJK SC",sans-serif;fill:#203831}.title{font-size:38px;font-weight:700}.desc{font-size:19px;fill:#49635a}.head{font-size:22px;font-weight:700}.small{font-size:17px}.lane{font-size:20px;font-weight:700}</style>
+<rect width="1600" height="1040" fill="#f5f8f5"/>
+<text x="48" y="64" font-family="Hiragino Sans GB" font-size="36" fill="#203831">云州档案查阅协同目标流程</text>
+<text x="48" y="104" font-family="Hiragino Sans GB" font-size="19" fill="#203831">公开档案试点  /  旧版误命中典型事件  /  四轮访谈证据 f11 与 f15</text>
+
+<rect x="40" y="138" width="1520" height="160" rx="12" fill="#eaf1eb"/>
+<text x="62" y="184" font-family="Hiragino Sans GB" font-size="21" fill="#203831">申请与授权</text>
+<text x="62" y="214" font-family="Hiragino Sans GB" font-size="17" fill="#203831">查询代表 / 审核员</text>
+<rect x="40" y="313" width="1520" height="176" rx="12" fill="#eaf1eb"/>
+<text x="62" y="359" font-family="Hiragino Sans GB" font-size="21" fill="#203831">检索与校验</text>
+<text x="62" y="389" font-family="Hiragino Sans GB" font-size="17" fill="#203831">整理员 / 检索服务</text>
+<rect x="40" y="504" width="1520" height="225" rx="12" fill="#eaf1eb"/>
+<text x="62" y="550" font-family="Hiragino Sans GB" font-size="21" fill="#203831">异常处置</text>
+<text x="62" y="580" font-family="Hiragino Sans GB" font-size="17" fill="#203831">整理员 / 审核员</text>
+<rect x="40" y="744" width="1520" height="167" rx="12" fill="#eaf1eb"/>
+<text x="62" y="790" font-family="Hiragino Sans GB" font-size="21" fill="#203831">审核与交付</text>
+<text x="62" y="820" font-family="Hiragino Sans GB" font-size="17" fill="#203831">审核员 / 查询代表</text>
+<rect x="278" y="171" width="268" height="95" rx="12" fill="#ffffff" stroke="#508574" stroke-width="2"/>
+<text x="294" y="202" font-family="Hiragino Sans GB" font-size="22" fill="#203831">01 提交查阅申请</text>
+<text x="294" y="229" font-family="Hiragino Sans GB" font-size="17" fill="#203831">登记用途和申请标识</text>
+<rect x="617" y="171" width="320" height="95" rx="12" fill="#ffffff" stroke="#508574" stroke-width="2"/>
+<text x="633" y="202" font-family="Hiragino Sans GB" font-size="22" fill="#203831">02 核验公开范围</text>
+<text x="633" y="229" font-family="Hiragino Sans GB" font-size="17" fill="#203831">无权、过期或撤权时停止</text>
+<rect x="1017" y="171" width="316" height="95" rx="12" fill="#ffffff" stroke="#508574" stroke-width="2"/>
+<text x="1033" y="202" font-family="Hiragino Sans GB" font-size="22" fill="#203831">03 整理员确认接手</text>
+<text x="1033" y="229" font-family="Hiragino Sans GB" font-size="17" fill="#203831">记录检索起点与岗位</text>
+<path d="M546 218 H617" fill="none" stroke="#205a48" stroke-width="3"/><polygon points="617.0,218.0 604.0,212.0 604.0,224.0" fill="#205a48"/>
+<path d="M937 218 H1017" fill="none" stroke="#205a48" stroke-width="3"/><polygon points="1017.0,218.0 1004.0,212.0 1004.0,224.0" fill="#205a48"/>
+<rect x="278" y="350" width="288" height="106" rx="12" fill="#ffffff" stroke="#508574" stroke-width="2"/>
+<text x="294" y="381" font-family="Hiragino Sans GB" font-size="22" fill="#203831">04 混合检索</text>
+<text x="294" y="408" font-family="Hiragino Sans GB" font-size="17" fill="#203831">关键词与语义召回</text>
+<text x="294" y="431" font-family="Hiragino Sans GB" font-size="17" fill="#203831">服务端先过滤授权资料</text>
+<rect x="629" y="350" width="335" height="106" rx="12" fill="#ffffff" stroke="#508574" stroke-width="2"/>
+<text x="645" y="381" font-family="Hiragino Sans GB" font-size="22" fill="#203831">05 核对版本与卷页</text>
+<text x="645" y="408" font-family="Hiragino Sans GB" font-size="17" fill="#203831">读取更正关系和页码映射</text>
+<text x="645" y="431" font-family="Hiragino Sans GB" font-size="17" fill="#203831">复核前重新校验来源</text>
+<rect x="1060" y="350" width="345" height="106" rx="12" fill="#ffffff" stroke="#508574" stroke-width="2"/>
+<text x="1076" y="381" font-family="Hiragino Sans GB" font-size="22" fill="#203831">06 依据完整且有效</text>
+<text x="1076" y="408" font-family="Hiragino Sans GB" font-size="17" fill="#203831">展示卷号、版本和页码</text>
+<text x="1076" y="431" font-family="Hiragino Sans GB" font-size="17" fill="#203831">等待整理员人工确认</text>
+<path d="M1175 266 V328 H422 V350" fill="none" stroke="#205a48" stroke-width="3"/><polygon points="422.0,350.0 428.0,337.0 416.0,337.0" fill="#205a48"/>
+<path d="M566 402 H629" fill="none" stroke="#205a48" stroke-width="3"/><polygon points="629.0,402.0 616.0,396.0 616.0,408.0" fill="#205a48"/>
+<path d="M964 402 H1060" fill="none" stroke="#205a48" stroke-width="3"/><polygon points="1060.0,402.0 1047.0,396.0 1047.0,408.0" fill="#205a48"/>
+<text x="978" y="390" font-family="Hiragino Sans GB" font-size="17" fill="#203831">通过</text>
+<rect x="278" y="560" width="303" height="112" rx="12" fill="#fff3e8" stroke="#b54e2c" stroke-width="2"/>
+<text x="294" y="591" font-family="Hiragino Sans GB" font-size="22" fill="#203831">A 旧版误命中</text>
+<text x="294" y="618" font-family="Hiragino Sans GB" font-size="17" fill="#203831">更正件未关联到原卷</text>
+<text x="294" y="641" font-family="Hiragino Sans GB" font-size="17" fill="#203831">检索返回过时版本</text>
+<rect x="646" y="560" width="320" height="112" rx="12" fill="#fff3e8" stroke="#b54e2c" stroke-width="2"/>
+<text x="662" y="591" font-family="Hiragino Sans GB" font-size="22" fill="#203831">B 暂停建议并留痕</text>
+<text x="662" y="618" font-family="Hiragino Sans GB" font-size="17" fill="#203831">卷内更正记录与检索不符</text>
+<text x="662" y="641" font-family="Hiragino Sans GB" font-size="17" fill="#203831">保留原记录及待确认字段</text>
+<rect x="1041" y="560" width="370" height="112" rx="12" fill="#fff3e8" stroke="#b54e2c" stroke-width="2"/>
+<text x="1057" y="591" font-family="Hiragino Sans GB" font-size="22" fill="#203831">C 审核员复核或退回</text>
+<text x="1057" y="618" font-family="Hiragino Sans GB" font-size="17" fill="#203831">核对原卷与后续更正件</text>
+<text x="1057" y="641" font-family="Hiragino Sans GB" font-size="17" fill="#203831">缺证据时挂起，待有权岗补齐</text>
+<path d="M760 456 V520 H429 V560" fill="none" stroke="#b54e2c" stroke-width="3"/><polygon points="429.0,560.0 435.0,547.0 423.0,547.0" fill="#b54e2c"/>
+<text x="441" y="548" font-family="Hiragino Sans GB" font-size="17" fill="#203831">缺失、冲突或人工发现旧版</text>
+<path d="M581 617 H646" fill="none" stroke="#b54e2c" stroke-width="3"/><polygon points="646.0,617.0 633.0,611.0 633.0,623.0" fill="#b54e2c"/>
+<path d="M966 617 H1041" fill="none" stroke="#b54e2c" stroke-width="3"/><polygon points="1041.0,617.0 1028.0,611.0 1028.0,623.0" fill="#b54e2c"/>
+<path d="M1411 650 H1455 V477 H875 V456" fill="none" stroke="#b54e2c" stroke-width="3"/><polygon points="875.0,456.0 869.0,469.0 881.0,469.0" fill="#b54e2c"/>
+<text x="1100" y="499" font-family="Hiragino Sans GB" font-size="17" fill="#203831">补齐依据后重新校验</text>
+<rect x="278" y="784" width="300" height="95" rx="12" fill="#ffffff" stroke="#508574" stroke-width="2"/>
+<text x="294" y="815" font-family="Hiragino Sans GB" font-size="22" fill="#203831">07 人工确认并提交审核</text>
+<text x="294" y="842" font-family="Hiragino Sans GB" font-size="17" fill="#203831">保存版本、卷页与人员</text>
+<rect x="641" y="784" width="338" height="95" rx="12" fill="#ffffff" stroke="#508574" stroke-width="2"/>
+<text x="657" y="815" font-family="Hiragino Sans GB" font-size="22" fill="#203831">08 审核员接手并签核</text>
+<text x="657" y="842" font-family="Hiragino Sans GB" font-size="17" fill="#203831">退回后重新核对，保留审计</text>
+<rect x="1050" y="784" width="359" height="95" rx="12" fill="#ffffff" stroke="#508574" stroke-width="2"/>
+<text x="1066" y="815" font-family="Hiragino Sans GB" font-size="22" fill="#203831">09 记录人工交付</text>
+<text x="1066" y="842" font-family="Hiragino Sans GB" font-size="17" fill="#203831">核对交付版本与签收凭证</text>
+<path d="M1405 403 H1515 V758 H428 V784" fill="none" stroke="#205a48" stroke-width="3"/><polygon points="428.0,784.0 434.0,771.0 422.0,771.0" fill="#205a48"/>
+<path d="M578 832 H641" fill="none" stroke="#205a48" stroke-width="3"/><polygon points="641.0,832.0 628.0,826.0 628.0,838.0" fill="#205a48"/>
+<path d="M979 832 H1050" fill="none" stroke="#205a48" stroke-width="3"/><polygon points="1050.0,832.0 1037.0,826.0 1037.0,838.0" fill="#205a48"/>
+<text x="48" y="956" font-family="Hiragino Sans GB" font-size="19" fill="#203831">绿色为拟建设主流程，橙色为典型事件异常路径。当前应用保留人工授权、审核和交付。</text>
+<text x="48" y="987" font-family="Hiragino Sans GB" font-size="19" fill="#203831">该事件的原始单号、分段耗时与最终交付版本待采集。按单记录首次检索、异常发现、复核提交及返回。</text>
+</svg>

@@ -10,11 +10,9 @@ from .api.agent_routes import router as agent_router
 from .chat.routes import router as chat_router
 from starlette.exceptions import HTTPException
 from .api.security import current_user
-from .core.store import ROOT, init_db
+from .core.store import init_db
 from .core.service import Problem
-
-FRONTEND=ROOT/'src'/'frontend'
-from .core.frontend import frontend_version, version_document
+from .core.frontend import CHAT_FILES, FRONTEND, frontend_version, version_document
 
 @asynccontextmanager
 async def lifespan(app):
@@ -80,7 +78,7 @@ async def headers(request: Request,call_next):
 def api_documentation():
     # Local, dependency-free documentation: works offline under the same CSP.
     from fastapi.responses import HTMLResponse
-    return HTMLResponse('<!doctype html><meta charset="utf-8"><title>ArcSync API</title><h1>ArcSync HTTP API</h1><p>接口与鉴权说明见项目 docs/api.md。</p><p><a href="/api/openapi.json">查看 OpenAPI 接口定义</a> · <a href="/">返回欢迎页</a></p>')
+    return HTMLResponse('<!doctype html><meta charset="utf-8"><title>ArcSync API</title><h1>ArcSync HTTP API</h1><p>接口与鉴权说明见项目 docs-archive/api.md。</p><p><a href="/api/openapi.json">查看 OpenAPI 接口定义</a> · <a href="/">返回欢迎页</a></p>')
 
 @app.get('/api/frontend/version',include_in_schema=False)
 def frontend_generation():
@@ -110,7 +108,9 @@ def frontend(page: str,request: Request):
         source=re.sub(r'<div class="account-examples">.*?</div></div>', '',source)
         source=source.replace("form.elements.password.value='ArcSync2026!'", "form.elements.password.value=''")
         return Response(source,media_type='text/javascript')
-    return FileResponse(FRONTEND/files[page])
+    filename=files[page]
+    directory=FRONTEND.parent if filename in CHAT_FILES else FRONTEND
+    return FileResponse(directory/filename)
 
 def main():
     import uvicorn

@@ -9,5 +9,5 @@ export ARCSYNC_DATABASE_URL=''
 node --check src/frontend/frontend-sync.js
 node --check src/frontend/app.js
 node --check src/frontend/manage.js
-node --check src/frontend/chat.js
+node --check src/chat.js
 "$ARCSYNC_PYTHON" -m unittest discover -s tests -v

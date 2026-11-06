@@ -12,7 +12,8 @@ from ..api.security import current_user
 from ..api.agent_routes import _active
 from ..agents.orchestrator import Orchestrator
 from ..core.service import Problem, check_active
-from ..core.store import connect, ROOT
+from ..core.frontend import FRONTEND, frontend_version
+from ..core.store import connect
 from ..data_models.config import ModelError
 from . import repository
 
@@ -183,10 +184,9 @@ async def chat(request:Request,data:dict=Depends(json_body),user=Depends(current
 
 @router.get('/api/chat/view')
 def chat_view(ui_version:str='',user=Depends(current_user)):
-    from ..core.frontend import frontend_version
     version=frontend_version()
     if ui_version!=version:raise Problem('界面已更新，请重新加载当前工作台以使用统一版式',409)
-    return {'html':(ROOT/'src'/'frontend'/'chat-panel.html').read_text(),'version':version}
+    return {'html':(FRONTEND.parent/'chat-panel.html').read_text(encoding='utf-8'),'version':version}
 
 
 @router.get('/chat-ui',include_in_schema=False)

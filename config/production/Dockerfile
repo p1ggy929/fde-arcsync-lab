@@ -6,6 +6,7 @@ COPY src ./src
 COPY scripts ./scripts
 COPY data/evaluations ./data/evaluations
 COPY docs ./docs
+COPY docs-archive ./docs-archive
 RUN mkdir -p /state && chown -R arcsync:arcsync /state /app/data
 ENV PYTHONPATH=/app/src ARCSYNC_ENV=production ARCSYNC_DB=/state/business.sqlite3 ARCSYNC_CHAT_DB=/state/chat.sqlite3
 USER arcsync

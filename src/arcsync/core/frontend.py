@@ -1,18 +1,20 @@
 """One frontend generation for every account, including lazy-loaded chat markup."""
 import hashlib
 from html import escape
-from pathlib import Path
 import re
 from .store import ROOT
 
 FRONTEND=ROOT/'src'/'frontend'
+CHAT_FILES=('chat-panel.html','chat.js','chat.css')
 
 
 def frontend_version():
     digest=hashlib.sha256()
-    for path in sorted(FRONTEND.iterdir()):
+    source=FRONTEND.parent
+    paths=[*FRONTEND.iterdir(), *(source/name for name in CHAT_FILES)]
+    for path in sorted(paths):
         if path.is_file() and path.suffix in ('.html','.js','.css','.svg'):
-            digest.update(path.name.encode())
+            digest.update(path.relative_to(source).as_posix().encode())
             digest.update(path.read_bytes())
     return digest.hexdigest()[:20]
 

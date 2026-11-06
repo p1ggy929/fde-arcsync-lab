@@ -1,6 +1,6 @@
 # 样例数据
 
-`evaluations/yunzhou-archives.json` 为系统内置的30条云州档案评测用例。管理员可在“项目评测”查看和下载，题库不会作为档案知识参与检索。使用方法见 `docs/evaluation-dataset.md`。
+`evaluations/yunzhou-archives.json` 为系统内置的30条云州档案评测用例。管理员可在“项目评测”查看和下载，题库不会作为档案知识参与检索。使用方法见 `docs-archive/evaluation-dataset.md`。
 
 首次启动由 `src/arcsync/core/store.py` 初始化 8 份合成档案、5 笔合成业务和 1 项异常。
 包含 7 份公开资料和 1 份仅档案保护专员可见的受限测试资料。

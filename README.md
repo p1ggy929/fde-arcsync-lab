@@ -2,9 +2,16 @@
 
 一个可本地运行的档案检索与查阅协同平台。围绕「申请 → 权限核验 → 检索 → 卷页核对 → 审核 → 交付」提供完整的演示流程，基于本仓库 `discovery-report.md` 建设。
 
-**当前版本：四层平台，预置数据为合成资料。已支持真实 LLM 接入、FAISS 和 MySQL；模型默认未配置，未接入真实档案与 OCR。** 原始需求来自合成访谈，真实接入、授权与验收口径仍需业务确认。
+**当前版本支持接入对话模型、嵌入模型、FAISS 和 MySQL。默认使用合成档案，模型需单独配置。** 原始需求来自合成访谈，真实接入、授权与验收口径仍需业务确认。
 
-公网部署前请先阅读 [安全检查报告（2026-10-30）](docs/security-review-2026-10-30.md)。当前默认配置存在上线阻塞项，功能测试通过不等于可安全对公网开放。
+公网部署前请先阅读 [安全检查报告（2026-10-30）](docs-archive/security-review-2026-10-30.md)。当前默认配置存在上线阻塞项，功能测试通过不等于可安全对公网开放。
+
+## 验收入口
+
+1. [启动项目](#快速运行)。使用演示账号登录即可体验合成档案业务。
+2. [走通一笔业务](#走通一笔业务)。从档案整理员检索并核对卷页，到审核员接手、审核和记录交付。各步骤的预期状态见 [闭环测试操作手册](docs-archive/end-to-end-test-guide.md)。
+3. [复跑自动测试和构建](#验证与交付)。历次验证范围与结果见 [交付验证记录](docs-archive/verification.md)。
+4. [验收智能查阅](docs-archive/evaluation-platform.md#使用流程)。按 [模型配置指南](docs-archive/model-setup.md) 配置对话和嵌入服务，进入「制度与问答管理 → 项目评测」执行全部 30 条用例。运行状态与归档入口见 [真实模型评测记录](docs-archive/verification.md#真实模型评测)。
 
 ## 快速运行
 
@@ -36,20 +43,20 @@ PORT=8877 sh scripts/start.sh
 
 ## 双端与四层架构
 
-已实现 **入口层**（双端）、**FastAPI 服务层**、**智能体层**（自主选择工具→强制校验→生成）与 **数据模型层**（云端/Ollama/vLLM、FAISS、MySQL/SQLite），见 [架构说明](docs/architecture.md)。智能体接入方式与验证边界见 [模型配置指南](docs/model-setup.md)，真实联调按 [智能体验收流程](docs/agent-test-guide.md) 执行。
+已实现 **入口层**（双端）、**FastAPI 服务层**、**智能体层**（自主选择工具→强制校验→生成）与 **数据模型层**（云端/Ollama/vLLM、FAISS、MySQL/SQLite），见 [架构说明](docs-archive/architecture.md)。智能体接入方式与验证边界见 [模型配置指南](docs-archive/model-setup.md)，真实联调按 [智能体验收流程](docs-archive/agent-test-guide.md) 执行。
 
 | 工作端 | 体验账号 | 主要功能 |
 | --- | --- | --- |
 | 员工门户 `/portal` | `organizer`、`representative` | 申请、检索、引用、交接、进度、反馈 |
 | 管理后台 `/admin` | `reviewer`、`engineer`、`protector`、`director` | 审核、异常修复、评估、运行控制、审计 |
 
-页面预览：[欢迎页](docs/welcome-preview.png) · [管理后台](docs/admin-portal-preview.png)。
+页面预览：[欢迎页](docs-archive/welcome-preview.png) · [管理后台](docs-archive/admin-portal-preview.png)。
 
 统一入口：`/`。账号由服务端分配所属端，客户端不能自行提升权限。更换账号：右上角姓名 → 退出并更换账号 → 欢迎页登录。接口说明：[/api/docs](http://127.0.0.1:8765/api/docs)，OpenAPI：`/api/openapi.json`。档案检索已使用 SSE 逐条接收授权结果。
 
 ## 多轮档案智能查阅
 
-登录后点击侧栏“智能查阅”，或打开 `/chat-ui`。支持SSE逐字回答、文件名和条文片段引用、最近6轮完整上下文、会话恢复与停止生成。聊天保存在SQLite，按独立user_id隔离。接口为 `POST /chat`，详细协议、错误码和独立账号创建方法见 [聊天接口与使用说明](docs/chat-api.md)。
+登录后点击侧栏“智能查阅”，或打开 `/chat-ui`。支持SSE逐字回答、文件名和条文片段引用、最近6轮完整上下文、会话恢复与停止生成。聊天保存在SQLite，按独立user_id隔离。接口为 `POST /chat`，详细协议、错误码和独立账号创建方法见 [聊天接口与使用说明](docs-archive/chat-api.md)。
 
 旧演示账号可继续登录；不同员工应创建不同用户名，不能共用同一个演示账号来实现人员隔离。升级后请重新登录。模型未配置时明确提示，已有聊天仍可查看。
 
@@ -83,9 +90,9 @@ PORT=8877 sh scripts/start.sh
 
 新建申请从「待权限核验」开始：审核员核验公开试点范围后，整理员须先确认接手才能定位。退回与异常跨岗恢复也须确认接手。
 
-完整的逐步测试流程、示例填写内容、预期状态与执行记录模板见 [完整闭环测试操作手册](docs/end-to-end-test-guide.md)。
+完整的逐步测试流程、示例填写内容、预期状态与执行记录模板见 [完整闭环测试操作手册](docs-archive/end-to-end-test-guide.md)。
 
-改善前的岗位流程、业务断点和耗时 / 人工成本热点见 [业务现状泳道图](docs/业务现状.png) 与 [简短说明](docs/业务现状说明.md)。
+改善前的岗位流程、业务断点和耗时 / 人工成本热点见 [业务现状泳道图](docs-archive/业务现状.png) 与 [简短说明](docs-archive/业务现状说明.md)。
 
 ## 六个演示岗位
 
@@ -102,12 +109,15 @@ PORT=8877 sh scripts/start.sh
 
 ## 验证与交付
 
+在项目的 Python 环境中安装测试依赖。已用启动脚本创建 `.venv` 时，安装和测试都使用该环境。
+
 ```sh
+.venv/bin/python -m pip install -r requirements-dev.txt
 sh scripts/test.sh
 sh scripts/build.sh
 ```
 
-测试覆盖完整流程、跨岗接手、越权读取与写入、页码与版本拦截、暂停、冲突编辑、异常复核、反馈和数据库持久化。HTTP 测试需要允许绑定本地临时端口。
+测试覆盖完整流程、跨岗接手、越权读取与写入、页码与版本拦截、暂停、冲突编辑、异常复核、反馈和数据库持久化。开发依赖包含 Redis Lua 契约测试所需的 `fakeredis[lua]`。HTTP 测试需要允许绑定本地临时端口。
 
 交付包位于 `dist/arcsync-0.3.0.zip`，不含数据库、会话和环境口令。CI 运行同样的验证与构建。
 
@@ -115,10 +125,14 @@ sh scripts/build.sh
 
 ```text
 src/frontend/             中文界面、样式与交互（无构建依赖）
+src/chat-panel.html       问答助手的页面模板
+src/chat.css、src/chat.js  问答助手的样式与交互
 src/arcsync/main.py       本地 HTTP 入口、会话与接口
+src/arcsync/chat/         问答助手的会话接口、流式响应与历史记录
 src/arcsync/core/         数据、权限、状态流转与审计
 src/arcsync/integrations/ 外部系统接入契约（未启用）
-docs/                    设计、接口、验收与部署说明
+docs/                    原始需求发现报告
+docs-archive/            设计、接口、验收与部署说明
 tests/                   核心规则与真实 HTTP 回归测试
 examples/                可运行的接口示例
 scripts/                 启动、验证与交付打包
@@ -129,26 +143,26 @@ data/                    运行时本地数据库与样例说明
 
 ## 当前边界
 
-本地服务只监听 `127.0.0.1`。档案库、OCR、授权审核台、AI 和真实 SSO 尚未接入；关键词检索使用目录与固定摘要，卷页由合成模板生成。没有对原系统回写或档案删除接口。
+本地服务默认监听 `127.0.0.1`。外部档案库、OCR、授权审核台和真实 SSO 尚未接入。关键词检索使用目录与固定摘要，卷页由合成模板生成。没有对原系统回写或档案删除接口。
 
-暂未实现真实定时同步、断线重连补齐、生产级不可篡改审计、留存到期审批任务、SLA 自动升级、金标准标注与实测准确率计算。界面对此均不宣称已完成；后续见 [部署说明](docs/deployment.md)。
+暂未实现真实定时同步、断线重连补齐、生产级不可篡改审计、留存到期审批任务和 SLA 自动升级。内置 30 条用例使用合成档案，其结果用于验证当前实现，不代表真实档案试点的准确率。后续见 [部署说明](docs-archive/deployment.md)。
 
-需求来源及限制见 [发现报告](discovery-report.md)，详细实现见 [设计说明](docs/design.md)、[接口文档](docs/api.md)、[验收说明](docs/acceptance.md)。
+需求来源及限制见 [发现报告](docs/discovery-report.md)，详细实现见 [设计说明](docs-archive/design.md)、[接口文档](docs-archive/api.md)、[验收说明](docs-archive/acceptance.md)。
 
 本项目代码采用 MIT 许可证，第三方或真实档案的使用权限需另行取得。
 
 ### 制度与问答管理后台
 
-管理员登录后在侧栏进入“制度与问答管理”（`/admin/manage`），支持 Markdown/PDF 上传并向量化、数据库提示词即时更新、按人员与时间审计问答及人工标记疑似越权查阅／异常利用线索。详见 [管理后台说明](docs/admin-workspace.md) 和 [默认系统提示词](docs/default-system-prompt.md)。
+管理员登录后在侧栏进入“制度与问答管理”（`/admin/manage`），支持 Markdown/PDF 上传并向量化、数据库提示词即时更新、按人员与时间审计问答及人工标记疑似越权查阅／异常利用线索。详见 [管理后台说明](docs-archive/admin-workspace.md) 和 [默认系统提示词](docs-archive/default-system-prompt.md)。
 
-智能体可自主检索、读取卷页、核对更正关系、收集查阅需求，并在服务端校验通过后创建申请草稿。Agent创建前会流式展示具体草稿并暂停，员工确认后才保存；草稿在 `/access-drafts` 人工确认提交，进入原有“待权限核验”流程。工具约束与接口见 [档案智能体设计与使用](docs/autonomous-agent.md)。
+智能体可自主检索、读取卷页、核对更正关系、收集查阅需求，并在服务端校验通过后创建申请草稿。Agent创建前会流式展示具体草稿并暂停，员工确认后才保存；草稿在 `/access-drafts` 人工确认提交，进入原有“待权限核验”流程。工具约束与接口见 [档案智能体设计与使用](docs-archive/autonomous-agent.md)。
 
-Agent使用项目内轻量Harness，最多5轮模型决策，逐轮记录工具参数、耗时和结果摘要，支持创建前人工中断与持久化恢复。三个档案场景预期轨迹及阶段5日志分析见 [Harness编排说明](docs/agent-harness.md)。
+Agent使用项目内轻量Harness，最多5轮模型决策，逐轮记录工具参数、耗时和结果摘要，支持创建前人工中断与持久化恢复。三个档案场景预期轨迹及阶段5日志分析见 [Harness编排说明](docs-archive/agent-harness.md)。
 
 ### 生产安全与成本控制（第一阶段）
 
-生产模式增加默认账号阻断、对象权限过滤、Redis共享限流与模型预算预留、模型用量管理页、就绪检查，以及容器部署和备份/回滚工具。默认一键启动仍为开发模式。部署步骤、预算口径和验证边界见 [第一阶段生产部署说明](docs/production-phase1.md)。真实环境验收前不要直接映射开发服务到公网。
+生产模式增加默认账号阻断、对象权限过滤、Redis共享限流与模型预算预留、模型用量管理页、就绪检查，以及容器部署和备份/回滚工具。默认一键启动仍为开发模式。部署步骤、预算口径和验证边界见 [第一阶段生产部署说明](docs-archive/production-phase1.md)。真实环境验收前不要直接映射开发服务到公网。
 
 ### 自动评测与版本对比（第二阶段）
 
-管理后台“项目评测”支持30条云州档案用例的隔离排队执行、多轮上下文、工具/引用自动检查、独立人工复核、报告下载与版本对比。完整30项通过后才可进入发布审批；正式发布脚本校验数据库中的评测证据。真实模型执行会产生费用，未配置时不会生成模拟成绩。步骤及边界见 [评测平台说明](docs/evaluation-platform.md)。
+管理后台“项目评测”支持30条云州档案用例的隔离排队执行、多轮上下文、工具/引用自动检查、独立人工复核、报告下载与版本对比。完整30项通过后才可进入发布审批；正式发布脚本校验数据库中的评测证据。真实模型执行会产生费用，未配置时不会生成模拟成绩。步骤及边界见 [评测平台说明](docs-archive/evaluation-platform.md)。

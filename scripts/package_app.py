@@ -3,7 +3,7 @@ from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 root=Path(__file__).resolve().parents[1]
 with ZipFile(root/'dist'/'arcsync-0.3.0.zip','w',ZIP_DEFLATED) as archive:
-    names=['src','scripts','config','docs','examples','tests','.github']
+    names=['src','scripts','config','docs','docs-archive','examples','tests','.github']
     for name in names:
         for path in sorted((root/name).rglob('*')):
             if path.is_file() and '__pycache__' not in path.parts:

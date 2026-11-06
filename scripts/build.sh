@@ -6,7 +6,7 @@ if [ -x .venv/bin/python ] && [ "$ARCSYNC_PYTHON" = python3 ]; then ARCSYNC_PYTH
 node --check src/frontend/frontend-sync.js
 node --check src/frontend/app.js
 node --check src/frontend/manage.js
-node --check src/frontend/chat.js
+node --check src/chat.js
 "$ARCSYNC_PYTHON" -m compileall -q src/arcsync
 mkdir -p dist
 "$ARCSYNC_PYTHON" scripts/package_app.py

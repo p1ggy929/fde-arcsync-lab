@@ -1,0 +1,16 @@
+:root {
+  --ink: #23382f;
+  --muted: #52675a;
+  --green: #205a48;
+  --green-hover: #164735;
+  --paper: #ffffff;
+  --background: #f7f8f5;
+  --sage: #eaf1e9;
+  --line: #d7e1d7;
+  --field: #788d7e;
+  --focus: #205a48;
+  --error: #942e29;
+  --font: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --radius: 8px;
+  --content-width: 64rem;
+}

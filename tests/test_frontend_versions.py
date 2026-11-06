@@ -105,16 +105,19 @@ class FrontendVersionTests(unittest.TestCase):
         from arcsync.core import frontend
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
-            (root/'index.html').write_text('<html><head></head><body></body></html>')
-            (root/'chat.css').write_text('.archive-chat{display:grid}')
+            frontend_dir=root/'frontend'
+            frontend_dir.mkdir()
+            (frontend_dir/'index.html').write_text('<html><head></head><body></body></html>')
+            css=root/'chat.css'
+            css.write_text('.archive-chat{display:grid}')
             (root/'chat.js').write_text('window.mountArchiveChat=()=>{};')
             (root/'chat-panel.html').write_text('<div class="archive-chat"></div>')
-            with patch.object(frontend,'FRONTEND',root):
+            with patch.object(frontend,'FRONTEND',frontend_dir):
                 before=frontend.frontend_version()
                 self.assertEqual(frontend.frontend_version(),before)
-                (root/'chat.css').write_text('.archive-chat{display:block}')
+                css.write_text('.archive-chat{display:block}')
                 after=frontend.frontend_version();self.assertNotEqual(after,before)
-                (root/'chat.css').write_text('.archive-chat{display:grid}')
+                css.write_text('.archive-chat{display:grid}')
                 self.assertEqual(frontend.frontend_version(),before)
 
 
